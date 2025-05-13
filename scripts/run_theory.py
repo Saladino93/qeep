@@ -47,6 +47,7 @@ def run_analysis(config_path):
     b20_B = bias_config['b20_B']
     bs2_A = bias_config['bs2_A']
     bs2_B = bias_config['bs2_B']
+    
     bthetaA = bias_config['bthetaA']
     bthetaB = bias_config['bthetaB']
     brA = bias_config['brA']
@@ -98,63 +99,38 @@ def run_analysis(config_path):
     estimator_configs = {
         'g': {
             'F': Fg_factor*q1/q1,
-            'ca': 1., #Cg["g"](b1A=b10_A, b2A=b20_A, b1B=b10_B, bthetaA=0, bdeltathetaA=0, fX=0, bmrA=0, brA=0), #AB
-            'cb': 1., #Cg["g"](b1A=b10_B, b2A=b20_B, b1B=b10_A, bthetaA=0, bdeltathetaA=0, fX=0, bmrA=0, brA=0) #BA
+            'ca': 1., 
+            'cb': 1.
         },
         'ga': { #antisymmetric part of g
             'F': Fg_factor*q1/q1,
-            'ca': 1., #Cg["g"](b1A=b10_A, b2A=b20_A, b1B=b10_B, bthetaA=0, bdeltathetaA=0, fX=0, bmrA=0, brA=0), #AB
-            'cb': -1., #Cg["g"](b1A=b10_B, b2A=b20_B, b1B=b10_A, bthetaA=0, bdeltathetaA=0, fX=0, bmrA=0, brA=0) #BA
+            'ca': 1., 
+            'cb': -1.
         },
         's': {
             'F': 0.5*(q2/q1+q1/q2)*mu,
-            'ca': 1, #Cg["s"](b1A=b10_A, b2A=0, bs2A=0, b1B=b10_B, b2B=0, bs2B=0),
-            'cb': 1 #Cg["s"](b1A=b10_B, b2A=0, bs2A=0, b1B=b10_A, b2B=0, bs2B=0)
+            'ca': 1, 
+            'cb': 1
         },
         'sa': { #antisymmetric part of s
             'F': 0.5*(q2/q1+q1/q2)*mu,
-            'ca': 1, #Cg["s"](b1A=b10_A, b2A=0, bs2A=0, b1B=b10_B, b2B=0, bs2B=0), #AB
-            'cb': -1 #Cg["s"](b1A=b10_B, b2A=0, bs2A=0, b1B=b10_A, b2B=0, bs2B=0) #BA
+            'ca': 1, 
+            'cb': -1
         },
         't': {
             'F': (2./7.)*(mu**2.-1./3.),
-            'ca': 1., #Cg["t"](b1A=b10_A, b2A=0, bs2A=bs2_A, b1B=b10_B, b2B=0, bs2B=0),
-            'cb': 1. #Cg["t"](b1A=b10_B, b2A=0, bs2A=bs2_B, b1B=b10_A, b2B=0, bs2B=0)
+            'ca': 1., 
+            'cb': 1.
         },
         'ta': { #antisymmetric part of t
             'F': (2./7.)*(mu**2.-1./3.),
-            'ca': 1., #Cg["t"](b1A=b10_A, b2A=0, bs2A=bs2_A, b1B=b10_B, b2B=0, bs2B=0), #AB
-            'cb': -1. #Cg["t"](b1A=b10_B, b2A=0, bs2A=bs2_B, b1B=b10_A, b2B=0, bs2B=0) #BA
-        },
-        'a': {
-            'F': mu*q2/q1,
-            'ca': 1,
-            'cb': 0
-        },
-        'b': {
-            'F': mu*q1/q2,
-            'ca': 0,
-            'cb': 1
-        },
-        'x': {
-            'F': 0.5*(q2/q1+q1/q2)*mu,
-            'ca': Cg["x"](b1A=b10_A, epsilon=epsilon, bthetaB=0, brB=brB, bDB=0, H=0),
-            'cb': Cg["x"](b1A=b10_B, epsilon=epsilon, bthetaB=0, brB=brA, bDB=0, H=0)
-        },
-        'x1': {
-            'F': 0.5*(q2/q1+q1/q2)*mu,
-            'ca': Cg["x"](b1A=b10_A, epsilon=epsilon, bthetaB=0, brB=brB, bDB=0, H=0),
-            'cb': 0
-        },
-        'x2': {
-            'F': 0.5*(q2/q1+q1/q2)*mu,
-            'ca': 0,
-            'cb': Cg["x"](b1A=b10_B, epsilon=epsilon, bthetaB=0, brB=brA, bDB=0, H=0)
+            'ca': 1., 
+            'cb': -1.
         },
         'n': {
             'F': 0.5*mu*q2/q1,
-            'ca': 1, #Cg["n"](1, 0, 0, 1, 0, 0),
-            'cb': 0  #Cg["n"](1, 0, 0, 0, 0, 0)
+            'ca': 1, 
+            'cb': 0
         }
     }
     
@@ -199,7 +175,6 @@ def run_analysis(config_path):
         w_B = qeutils.get_w(f_jax[key2], P_AA, P_BB)
         #AB-XY = AB-AB
         #
-        
         #variance_single_AB = qeutils.variance_per_mode(w_A, w_B, P_linear, P_linear, P_linear, P_linear, kmin, kmax, Nsamples_base=Nsamples_base//20)
         if False:
             variance_single_AB = qeutils.variance_per_mode(w_A, w_B, P_AA, P_BB, P_AB, P_AB, kmin, kmax, Nsamples_base=Nsamples_base//10, gauss_filter = False)
