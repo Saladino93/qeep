@@ -53,6 +53,7 @@ def safe_inv(C, eps = 1e-8):
         raise ValueError(f"Input must be at least 2D but got shape {shape}")
 
 
+
 def fisher_per_mode(v, K_array, Cfunc, eps=1e-8):
     """
     Compute the Fisher matrix per mode for a general covariance matrix C,

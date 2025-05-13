@@ -6,7 +6,7 @@ import numpy as np
 
 from scipy.fft import rfftn, irfftn
 
-import rec_utils as utils
+from qeep import rec_utils as utils
 
 
 def get_rec(key, real_field, box = 2000, kmin = 0, kmax = 0, Ptot_interp = None, Plin_interp = None, nthread = 128, real_field_2 = None):
@@ -20,8 +20,55 @@ def get_rec(key, real_field, box = 2000, kmin = 0, kmax = 0, Ptot_interp = None,
         return get_shift_n_rec(real_field, box, kmin, kmax, Ptot_interp, Plin_interp, nthread)
     else:
         raise ValueError(f"Key {key} does not exist")
+    
 
-def get_growth_rec(real_field, box = 2000, kmin = 0, kmax = 0, Ptot_interp = None, Plin_interp = None, nthread = 128):
+def get_ivf_wf_selected(real_field, Ptot_interp, Plin_interp, kmin, kmax, box, nthread, real_field_2 = None, Ptot_interp_2 = None):
+
+    N = real_field.shape[0]
+    kgrid, kmag = utils.get_kgrid_kmag(box, N)
+
+    selection = (kmag>=kmin) & (kmag<=kmax)
+
+    fft_field = rfftn(real_field, overwrite_x = False, workers = nthread)
+
+    delta_ivf = fft_field*1/Ptot_interp(kmag)*selection #IVF FIELD
+    delta_WF = delta_ivf*Plin_interp(kmag) #WF FIELD
+
+    if real_field_2 is not None:
+        delta_ivf_2, delta_WF_2, _, _ = get_ivf_wf_selected(real_field_2, Ptot_interp_2, Plin_interp, kmin, kmax, box, nthread)
+    else:
+        delta_ivf_2 = delta_ivf
+        delta_WF_2 = delta_WF
+
+    return delta_ivf, delta_WF, delta_ivf_2, delta_WF_2
+
+
+def get_growth_rec(real_field, box = 2000, kmin = 0, kmax = 0, Ptot_interp = None, Plin_interp = None, nthread = 128, real_field_2 = None, Ptot_interp_2 = None):
+    
+    delta_A_IVF, delta_A_WF, delta_B_IVF, delta_B_WF = get_ivf_wf_selected(real_field, Ptot_interp, Plin_interp, kmin, kmax, box, nthread, real_field_2, Ptot_interp_2)
+    
+    delta_IVF_A_real = irfftn(delta_A_IVF, overwrite_x=True, workers=nthread)
+    delta_WF_B_real = irfftn(delta_B_WF, overwrite_x=True, workers=nthread)
+
+    product_AB = delta_IVF_A_real*delta_WF_B_real
+
+    if real_field_2 is not None:
+        delta_IVF_B_real = irfftn(delta_B_IVF, overwrite_x=True, workers=nthread)
+        delta_WF_A_real = irfftn(delta_A_WF, overwrite_x=True, workers=nthread)
+        product_BA = delta_IVF_B_real*delta_WF_A_real
+    else:
+        product_BA = product_AB
+    
+    Fg = 17/21
+
+    product = product_AB + product_BA
+    product *= 2*Fg*delta_A_IVF.size
+
+    product_fft = rfftn(product, overwrite_x=False, workers=nthread)
+
+    return product_fft
+
+def get_growth_rec_original(real_field, box = 2000, kmin = 0, kmax = 0, Ptot_interp = None, Plin_interp = None, nthread = 128):
     
     fft_field = rfftn(real_field, overwrite_x = False, workers = nthread)
     N = real_field.shape[0]
@@ -81,28 +128,20 @@ def get_tidal_rec(real_field, box = 2000, kmin = 0, kmax = 0, Ptot_interp = None
     return product_fft
 
 
-def get_shift_rec(real_field, box = 2000, kmin = 0, kmax = 0, Ptot_interp = None, Plin_interp = None, nthread = 128, ca = None, cb = None):
+def get_shift_rec(real_field, box = 2000, kmin = 0, kmax = 0, Ptot_interp = None, Plin_interp = None, nthread = 128, real_field_2 = None, Ptot_interp_2 = None):
 
-    fft_field = rfftn(real_field, overwrite_x = False, workers = nthread)
+    delta_A_IVF, delta_A_WF, delta_B_IVF, delta_B_WF = get_ivf_wf_selected(real_field, Ptot_interp, Plin_interp, kmin, kmax, box, nthread, real_field_2, Ptot_interp_2)
+
     N = real_field.shape[0]
     kgrid, kmag = utils.get_kgrid_kmag(box, N)
-
-    selection = (kmag>=kmin) & (kmag<=kmax)
-    #selection = gauss_filter(kmag)
-
-    delta_A = fft_field*1/Ptot_interp*selection #IVF FIELD
-    delta_A_real = irfftn(delta_A, overwrite_x=True, workers=nthread)
-
-    delta_B = fft_field*1/Ptot_interp*Plin_interp*selection #WF FIELD
 
     inv_kmag_2 = 1/kmag**2
     inv_kmag_2[kmag == 0] = 0
 
-
     j_factor = 1j
     
     term = 0.
-
+    
     for i in range(3):
 
         term_1 = delta_B*j_factor*(-kgrid[i])*inv_kmag_2

@@ -20,7 +20,7 @@ def get_kgrid_kmag(box, N):
     return kgrid, kmag
 
 
-k_bin_edges_default = np.linspace(1e-4, 1, 100)
+k_bin_edges_default = np.linspace(1e-4, 0.3, 100)
 
 @numba.njit(parallel=True)
 def calc_power_mu0_x_axis(delta_k, BoxSize, k_bin_edges = k_bin_edges_default, delta_k2 = None):
