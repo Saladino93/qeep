@@ -1,0 +1,94 @@
+name: abacus_0000
+
+sim_params:
+  sim_name: "AbacusSummit_base_c000_ph000"
+  sim_name_base: "AbacusSummit_base_c000_ph"
+  z_mock: 0.5
+  cleaned_halos: True
+  sim_list: [0, 1, 2, 3, 4, 5]
+  ngrid: 576
+  nthread: 128
+  box: 2000
+  interlaced: True
+  compensated: True
+  paste: 'TSC'
+
+# Power spectrum file paths
+power_spectrum:
+  nonlinear: "nonlinear_power_abacus.txt"
+  linear: "linear_power_abacus.txt"
+
+# Bias parameters
+bias:
+  b10_A: 1.0
+  b10_B: 1.0
+  b20_A: 0.0
+  b20_B: 0.0
+  bs2_A: 0.0
+  bs2_B: 0.0
+  bthetaA: 0.3
+  bthetaB: 0.5
+  brA: 1.0
+  brB: 2.0
+
+# Number density parameters
+number_density:
+  nbar_A: 3.3e-4
+  nbar_B: 2.0e-4
+
+# k-range parameters
+k_range:
+  kmin: 0.051
+  kmax: 0.15
+  k_samples: 150
+  k_min_analysis: 0.001
+  k_max_analysis: 0.35
+  gauss_filter: False
+  gauss_filter_kmax: 0.15
+
+# Sampling parameters
+sampling:
+  Nsamples_base: 10000
+
+# Physics parameters
+physics:
+  deltac: 1.42
+  a1: 1.0
+  a2: -0.8095238095
+  Fg_factor: 17/21
+
+# Other parameters
+other:
+  epsilon: 1.0e-3
+
+# Keypairs for analysis
+keypairs:
+  #- ["x1", "n"]
+  #- ["x2", "n"]
+  - ["n", "n"]
+  - ["s", "n"]
+  - ["g", "n"]
+  #- ["x", "n"]
+  - ["t", "n"]
+  - ["g", "g"]
+  - ["s", "s"]
+  - ["t", "t"]
+  - ["g", "s"]
+  - ["g", "t"]
+  - ["s", "t"]
+  - ["n", "ga"]
+  - ["n", "sa"]
+  - ["n", "ta"]
+  #- ["a", "a"]
+  #- ["b", "b"]
+# Estimator keys
+estimator_keys:
+  - "n"
+  - "g"
+  - "s"
+  - "t"
+
+# Output configuration
+output:
+  directory: "results"
+  filename_prefix: "analysis" 
