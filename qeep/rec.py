@@ -9,15 +9,15 @@ from scipy.fft import rfftn, irfftn
 from qeep import rec_utils as utils
 
 
-def get_rec(key, real_field, box = 2000, kmin = 0, kmax = 0, Ptot_interp = None, Plin_interp = None, nthread = 128, real_field_2 = None):
+def get_rec(key, real_field, box = 2000, kmin = 0, kmax = 0, Ptot_interp = None, Plin_interp = None, nthread = 128, real_field_2 = None, Ptot_interp_2 = None):
     if key == "g":
-        return get_growth_rec(real_field, box, kmin, kmax, Ptot_interp, Plin_interp, nthread)
+        return get_growth_rec(real_field, box, kmin, kmax, Ptot_interp, Plin_interp, nthread, real_field_2, Ptot_interp_2)
     elif key == "s":
-        return get_shift_rec(real_field, box, kmin, kmax, Ptot_interp, Plin_interp, nthread)
+        return get_shift_rec(real_field, box, kmin, kmax, Ptot_interp, Plin_interp, nthread, real_field_2, Ptot_interp_2)
     elif key == "t":
-        return get_tidal_rec(real_field, box, kmin, kmax, Ptot_interp, Plin_interp, nthread)
+        return get_tidal_rec(real_field, box, kmin, kmax, Ptot_interp, Plin_interp, nthread, real_field_2, Ptot_interp_2)
     elif key == "n":
-        return get_shift_n_rec(real_field, box, kmin, kmax, Ptot_interp, Plin_interp, nthread)
+        return get_shift_n_rec(real_field, box, kmin, kmax, Ptot_interp, Plin_interp, nthread, real_field_2, Ptot_interp_2)
     else:
         raise ValueError(f"Key {key} does not exist")
     
@@ -173,25 +173,17 @@ def shift_single(WF, IVF_real, j_factor, ki, inv_kmag_2, nthread):
 
 def get_shift_n_rec(real_field, box = 2000, kmin = 0, kmax = 0, Ptot_interp = None, Plin_interp = None, nthread = 128, real_field_2 = None, Ptot_interp_2 = None):
 
-    fft_field = rfftn(real_field, overwrite_x = False, workers = nthread)
 
-    fft_field_2 = rfftn(real_field_2, overwrite_x = False, workers = nthread) if real_field_2 is not None else fft_field
-    Ptot_interp_2 = Ptot_interp_2 if real_field_2 is not None else Ptot_interp
+    delta_A_IVF, delta_A_WF, delta_B_IVF, delta_B_WF = get_ivf_wf_selected(real_field, Ptot_interp, Plin_interp, kmin, kmax, box, nthread, real_field_2, Ptot_interp_2)
 
     N = real_field.shape[0]
     kgrid, kmag = utils.get_kgrid_kmag(box, N)
 
-    selection = (kmag>=kmin) & (kmag<=kmax)
-
-    delta_A_ivf = fft_field*1/Ptot_interp*selection #IVF FIELD A
-    delta_A_WF = delta_A_ivf*Plin_interp
-
-    delta_B_ivf = fft_field_2*1/Ptot_interp_2*selection #IVF FIELD B
-    delta_B_ivf_real = irfftn(delta_B_ivf, overwrite_x=True, workers=nthread)
-    #delta_B_WF = delta_B_ivf*Plin_interp
-
     inv_kmag_2 = 1/kmag**2
     inv_kmag_2[kmag == 0] = 0
+
+    delta_B_ivf_real = irfftn(delta_B_IVF, overwrite_x=True, workers=nthread)
+    delta_A_ivf_real = irfftn(delta_A_IVF, overwrite_x=True, workers=nthread)
 
     j_factor = 1j
     
@@ -200,12 +192,14 @@ def get_shift_n_rec(real_field, box = 2000, kmin = 0, kmax = 0, Ptot_interp = No
 
         product_WA_B_fft = shift_single(delta_A_WF, delta_B_ivf_real, j_factor, kgrid[i], inv_kmag_2, nthread)
 
+        product_WB_A_fft = shift_single(delta_B_WF, delta_A_ivf_real, j_factor, kgrid[i], inv_kmag_2, nthread) if real_field_2 is not None else product_WA_B_fft
+
         #if real_field_2 is None:
         #    product_WB_A_fft = product_WA_B_fft
         #else:
         #    product_WB_A_fft = shift_single(delta_B_WF, delta_A_ivf_real, j_factor, kgrid[i], inv_kmag_2, nthread)
 
-        total = (product_WA_B_fft)
+        total = (product_WA_B_fft+product_WB_A_fft)
         term += (total)*delta_B_ivf_real.size
 
     return term*0.5
