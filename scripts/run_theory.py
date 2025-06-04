@@ -1,4 +1,4 @@
-import qeutils
+from qeep import qeutils
 import jax
 
 import numpy as np
@@ -22,14 +22,14 @@ def run_analysis(config_path):
     kr_config = config['k_range']
     sampling_config = config['sampling']
     physics_config = config['physics']
-    other_config = config['other']
+    #other_config = config['other']
     output_config = config['output']
 
     gauss_filter = kr_config['gauss_filter']
     
     # Load power spectrum data
-    knl, pnl = np.loadtxt(ps_config['nonlinear']).T
-    kl, pl = np.loadtxt(ps_config['linear']).T
+    knl, pnl = np.loadtxt(ps_config['main_directory']+config['name']+"/"+ps_config['nonlinear']).T
+    kl, pl = np.loadtxt(ps_config['main_directory']+config['name']+"/"+ps_config['linear']).T
     
     interpolate_function = qeutils.get_interpolated(knl, pnl)
     interpolate_function_lin = qeutils.get_interpolated(kl, pl)
@@ -69,7 +69,7 @@ def run_analysis(config_path):
     Fg_factor = 17/21  # Use literal fraction as requested
     
     # Other parameters
-    epsilon = other_config['epsilon']
+    #epsilon = other_config['epsilon']
     
     # Define Cg dictionary
     Cg = {}
@@ -128,7 +128,7 @@ def run_analysis(config_path):
             'cb': -1.
         },
         'n': {
-            'F': 0.5*mu*q2/q1,
+            'F': mu*q2/q1,
             'ca': 1, 
             'cb': 0
         }

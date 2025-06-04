@@ -1,3 +1,7 @@
+"""
+Quick theory code for experimentation.
+"""
+
 from qeep import qeutils
 import jax
 import jax.numpy as jnp
@@ -63,17 +67,35 @@ def run_analysis(config_path, config_path_hod):
         # Number density parameters
         nbar_A = out_info_A['nbar']
         nbar_B = out_info_B['nbar']
+
+        b10_A = 1.6
+        nbar_A = 3.3e-4
+        nshot_A = 1/nbar_A
+
+        Ptot_A = out_info_A['Ptot']
+        Ptot_B = Ptot_A #out_info_B['Ptot']
+
+        Ptot_A = b10_A**2*pnl+nshot_A
+
+        b10_B = b10_A
+        b20_B = b20_A
+        print("Comparing b20s (sim vs theory), A and B", b20_A, qeutils.b2_fid(b10_A), b20_B, qeutils.b2_fid(b10_B))
+        bs2_B = bs2_A
+        nbar_B = nbar_A
+
+        print("nbar_A", nbar_A)
         
         kA = out_info_A['k']
         kB = out_info_B['k']
-        P_AA = qeutils.get_interpolated(kA, out_info_A['Ptot'])
-        P_BB = qeutils.get_interpolated(kB, out_info_B['Ptot'])
+        P_AA = qeutils.get_interpolated(kA, Ptot_A)
+        P_BB = P_AA #qeutils.get_interpolated(kB, out_info_B['Ptot'])
 
         P_AB = qeutils.get_interpolated(kl, b10_A*b10_B*pl)
         P_linear = jax.jit(lambda k: interpolate_function_lin(k))
 
         P_AA_signal = qeutils.get_interpolated(kA, b10_A**2*pl)
-        P_BB_signal = qeutils.get_interpolated(kB, b10_B**2*pl)
+        P_A_signal = qeutils.get_interpolated(kA, b10_A*pl)
+        P_BB_signal = P_AA_signal #qeutils.get_interpolated(kB, b10_B**2*pl)
         P_AB_signal = qeutils.get_interpolated(kl, b10_A*b10_B*pl)
 
         # Keypairs and estimator keys
@@ -143,6 +165,7 @@ def run_analysis(config_path, config_path_hod):
         Fkernels = [qeutils.Fg, qeutils.Fs, qeutils.Ft]
         bs2_fid = qeutils.bs2_coev(b10_A)
         b2_fid = qeutils.b2_fid(b10_A)
+        b2_fid = -0.3
         Fbiases = [qeutils.bias_g(b10_A, b2_fid), qeutils.bias_s(b10_A), qeutils.bias_t(b10_A, bs2_fid)]
 
         # Prepare output directory
@@ -153,16 +176,17 @@ def run_analysis(config_path, config_path_hod):
         out_normalization_AB = {}
         out_variance_AB = {}
         out_cross_shot_AB = {}
+        out_shot_bispectrum = {}
         out_shot_trispectrum = {}
 
         out_normalization_BA = {}
         out_variance_BA = {}
         out_cross_shot_BA = {}
 
-        P_AA_signal_jax = jax.jit(lambda k: P_AA_signal(k))
-        P_BB_signal_jax = jax.jit(lambda k: P_BB_signal(k))
-        P_AB_signal_jax = jax.jit(lambda k: P_AB_signal(k))
-        bispectrum_cont = qeutils.get_bispectrum_XYZ(P_AA_signal_jax, P_AA_signal_jax, P_AA_signal_jax, Fkernels, Fbiases)
+        P_A_signal_jax = jax.jit(lambda k: P_A_signal(k))
+        #P_BB_signal_jax = jax.jit(lambda k: P_BB_signal(k))
+        #P_AB_signal_jax = jax.jit(lambda k: P_AB_signal(k))
+        bispectrum_cont = qeutils.get_bispectrum_XYZ(P_A_signal_jax, P_A_signal_jax, P_A_signal_jax, Fkernels, Fbiases)
         
         # Add progress bar for keypair calculations
         print("Running analysis for each keypair...")
@@ -187,18 +211,33 @@ def run_analysis(config_path, config_path_hod):
 
             w_B = qeutils.get_w(f_jax[key2], P_AA, P_BB)
 
-            shot_trispectrum = qeutils.shot_trispectrum(w_A, w_B, P_linear, bispectrum_cont, nbar_A, kmin, kmax, Nsamples_base=400//20)
-            shot_result = qeutils.integrate(Ks, shot_trispectrum, batch_size=2)
+            torchquad = True
+            shot_trispectrum = qeutils.shot_trispectrum(w_A, w_B, P_AA_signal, bispectrum_cont, nbar_A, kmin, kmax, Nsamples_base=400//20, torchquad = True)
+            shot_result = qeutils.integrate(Ks, shot_trispectrum, batch_size=2) if not torchquad else qeutils.integrate_vegas(Ks, shot_trispectrum)
             print("Done with shot trispectrum")
             out_shot_trispectrum[tuple(keypair)] = shot_result
             out_shot_trispectrum[(key2, key1)] = out_shot_trispectrum[tuple(keypair)]
+
+
+            shot_bispectrum = qeutils.shot_bispectrum(w_A, nbar_A, P_AA_signal, kmin, kmax, Nsamples_base=Nsamples_base)
+            shot_bispectrum_result = qeutils.integrate(Ks, shot_bispectrum, batch_size=2)
+
+            shot_bispectrum_alternative = qeutils.shot_bispectrum_alternative(w_A, nbar_A, P_AA_signal, kmin, kmax, Nsamples_base=Nsamples_base, Norm_K = lambda K: jnp.interp(K, Ks, out_normalization_AB[tuple(keypair)]**-1.))
+            shot_bispectrum_alternative_result = qeutils.integrate(Ks, shot_bispectrum_alternative, batch_size=2)
+
+            out_shot_bispectrum[tuple(keypair)] = shot_bispectrum_result
+            
+            print("shot_bispectrum_alternative_result", shot_bispectrum_alternative_result/shot_bispectrum_result)
+
+            out_shot_bispectrum[(key2, key1)] = out_shot_bispectrum[tuple(keypair)]
 
             #AB-XY = AB-AB
             #
             #variance_single_AB = qeutils.variance_per_mode(w_A, w_B, P_linear, P_linear, P_linear, P_linear, kmin, kmax, Nsamples_base=Nsamples_base//20)
             if not False:
-                variance_single_AB = qeutils.variance_per_mode(w_A, w_B, P_AA, P_BB, P_AB, P_AB, kmin, kmax, Nsamples_base=3000//15, gauss_filter = False)
-                out_variance_AB[tuple(keypair)] = qeutils.integrate(Ks, variance_single_AB, batch_size=2)
+                #variance_single_AB = qeutils.variance_per_mode(w_A, w_B, P_AA, P_BB, P_AB, P_AB, kmin, kmax, Nsamples_base=8000//15, gauss_filter = False)
+                variance_single_AB_fast = qeutils.variance_per_mode_fast(w_A, w_B, P_AA, P_BB, P_AB, P_AB, kmin, kmax, Nsamples_base=8000//15, gauss_filter = False)
+                out_variance_AB[tuple(keypair)] = qeutils.integrate(Ks, variance_single_AB_fast, batch_size=2)
                 out_variance_AB[(key2, key1)] = out_variance_AB[tuple(keypair)]
             # Update progress
             pbar.update(1)
@@ -214,7 +253,7 @@ def run_analysis(config_path, config_path_hod):
         np.save(output_dir / f"{filename_prefix}_cross_shot_AB.npy", out_cross_shot_AB)
         np.save(output_dir / f"{filename_prefix}_variance_AB.npy", out_variance_AB)
         np.save(output_dir / f"{filename_prefix}_shot_trispectrum_AB.npy", out_shot_trispectrum)
-
+        np.save(output_dir / f"{filename_prefix}_shot_bispectrum_AB.npy", out_shot_bispectrum)
         np.save(output_dir / f"{filename_prefix}_Ks.npy", Ks)
     
     print(f"Analysis complete. Results saved to {output_dir}")
@@ -223,7 +262,7 @@ def run_analysis(config_path, config_path_hod):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run noise and bias analysis using configuration from a YAML file.')
-    parser.add_argument('--config', type=str, help='Path to the YAML configuration file', default='config_abacus.yaml')
+    parser.add_argument('--config', type=str, help='Path to the YAML configuration file', default='config_abacus_thy.yaml')
     parser.add_argument('--config_hod', type=str, help='Path to the HOD configuration file', default='config_hod_0.yaml')
     parser.add_argument('--config_dir', type=str, help='Path to the configuration directory', default='../configs/abacus/')
     args = parser.parse_args()

@@ -59,9 +59,7 @@ physics:
   a2: -0.8095238095
   Fg_factor: 17/21
 
-# Other parameters
-other:
-  epsilon: 1.0e-3
+skip_variance: True
 
 # Keypairs for analysis
 keypairs:
@@ -75,9 +73,9 @@ keypairs:
   - ["g", "g"]
   - ["s", "s"]
   - ["t", "t"]
-  - ["g", "s"]
-  - ["g", "t"]
-  - ["s", "t"]
+  #- ["g", "s"]
+  #- ["g", "t"]
+  #- ["s", "t"]
   - ["n", "ga"]
   - ["n", "sa"]
   - ["n", "ta"]
