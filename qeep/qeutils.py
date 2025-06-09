@@ -175,7 +175,7 @@ def bias_s(b10):
 
 def get_f(F, P_linear, a, b):
   """
-  Returns function for f = 2[F(k1+k2, -k1)P(|k1|)+F(k1+k2, -k2)P(k2)]
+  Returns function for f = 2[a*F(k1+k2, -k1)P(|k1|)+b*F(k1+k2, -k2)P(k2)]
   """
   @jax.jit
   def f(k1, k2):
