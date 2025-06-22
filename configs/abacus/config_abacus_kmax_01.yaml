@@ -15,6 +15,7 @@ sim_params:
 
 # Power spectrum file paths
 power_spectrum:
+  main_directory: "../results/"
   nonlinear: "nonlinear_power_abacus.txt"
   linear: "linear_power_abacus.txt"
 
@@ -87,5 +88,5 @@ estimator_keys:
 
 # Output configuration
 output:
-  directory: "results"
+  directory: "../results"
   filename_prefix: "analysis" 

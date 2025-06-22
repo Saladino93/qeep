@@ -1,6 +1,10 @@
 """
 Quick theory code for experimentation.
 """
+import sys
+sys.path.append('/users/odarwish/lenscarf/lib/python3.12/site-packages')
+sys.path.append('/users/odarwish/qeep/')
+
 
 from qeep import qeutils
 import jax
@@ -118,6 +122,8 @@ def run_analysis(config_path, config_path_hod):
         
         # Sampling parameters
         Nsamples_base = sampling_config['Nsamples_base']
+
+        M = lambda x: sp.sqrt(x**2.+1e-10)
         
         # Define estimator configs
         estimator_configs = {
@@ -128,8 +134,8 @@ def run_analysis(config_path, config_path_hod):
             },
             'ga': { #antisymmetric part of g
                 'F': 17/21*q1/q1,
-                'ca': 1., 
-                'cb': -1.
+                'ca': -1., 
+                'cb': +1.
             },
             's': {
                 'F': 0.5*(q2/q1+q1/q2)*mu,
@@ -137,9 +143,12 @@ def run_analysis(config_path, config_path_hod):
                 'cb': 1
             },
             'sa': { #antisymmetric part of s
-                'F': 0.5*(q2/q1+q1/q2)*mu,
-                'ca': 1, 
-                'cb': -1
+                'F': 0.5*(q2/q1+q1/q2)*mu,  
+                #F(k1+k2, -k1), F(k1+k2, -k2), but here q1 and q2 are the arguments of F
+                #in my case, q1 = K, the long-mode and q2 is the small-scale mode = k1
+                #hence k2 = K-k1
+                'ca': -1, 
+                'cb': +1
             },
             't': {
                 'F': (2./7.)*(mu**2.-1./3.),
@@ -148,15 +157,47 @@ def run_analysis(config_path, config_path_hod):
             },
             'ta': { #antisymmetric part of t
                 'F': (2./7.)*(mu**2.-1./3.),
-                'ca': 1., 
-                'cb': -1.
+                'ca': -1., 
+                'cb': +1.
             },
             'n': {
-                'F': mu*q2/q1,
-                'ca': 1, 
+                'F': -mu*q2/q1, #k short/k long, so q2 is the small-scale mode = k, and q1 is the long-mode = K
+                'ca': 1,
                 'cb': 0
             }
         }
+        #expr_phiphi = sympy.parsing.sympy_parser.parse_expr("M(r(q1**2+q2**2+2*q1*q2*mu))*1/M(q1)*1/M(q2)")
+        #mod = sympy2jax.SymbolicModule(expr, {sympy.Function("M": M, "r": jnp.sqrt)})
+        #'phiphi': {
+        #    'F': M(sp.sqrt(q1**2.+q2**2.+2*q1*q2*mu)) \
+        #        * (1./M(q1)) * (1./M(q2)),
+        #    'ca': 1, 
+        #    'cb': 1
+        #},
+        #expr_c11 = sympy.parsing.sympy_parser.parse_expr("0.5*(1/M(q1)+1/M(q2))")
+        #mod = sympy2jax.SymbolicModule(expr, {sympy.Function("M": M, "r": jnp.sqrt)})
+        #expr_c01 = sympy.parsing.sympy_parser.parse_expr("0.5 * mu*q1*q2 * (1/(q1**2*M(q2))+1/(q2**2*M(q1)))")
+        #mod = sympy2jax.SymbolicModule(expr, {sympy.Function("M": M, "r": jnp.sqrt)})
+        #expr_c02 = sympy.parsing.sympy_parser.parse_expr("1/(M(q1)*M(q2))")
+        #mod = sympy2jax.SymbolicModule(expr, {sympy.Function("M": M, "r": jnp.sqrt)})
+        """
+            'c11': {
+                'F': 0.5*(1./M(q1)+1./M(q2)),
+                'ca': 1, 
+                'cb': 1
+            },
+            'c01': {
+                'F': 0.5 * mu*q1*q2 \
+                * (1./(q1**2.*M(q2))+1./(q2**2.*M(q1))),
+                'ca': 1, 
+                'cb': 1
+            },
+            'c02': {
+                'F': (1./(M(q1)*M(q2))),
+                'ca': 1, 
+                'cb': 1
+            }
+        """
         
         estimator_lam_jax = {key: sympy2jax.SymbolicModule(estimator_configs[key]['F']) for key in estimator_configs}
         
@@ -165,7 +206,7 @@ def run_analysis(config_path, config_path_hod):
         Fkernels = [qeutils.Fg, qeutils.Fs, qeutils.Ft]
         bs2_fid = qeutils.bs2_coev(b10_A)
         b2_fid = qeutils.b2_fid(b10_A)
-        b2_fid = -0.3
+        #b2_fid = -0.3
         Fbiases = [qeutils.bias_g(b10_A, b2_fid), qeutils.bias_s(b10_A), qeutils.bias_t(b10_A, bs2_fid)]
 
         # Prepare output directory
@@ -211,25 +252,26 @@ def run_analysis(config_path, config_path_hod):
 
             w_B = qeutils.get_w(f_jax[key2], P_AA, P_BB)
 
-            torchquad = True
-            shot_trispectrum = qeutils.shot_trispectrum(w_A, w_B, P_AA_signal, bispectrum_cont, nbar_A, kmin, kmax, Nsamples_base=400//20, torchquad = True)
-            shot_result = qeutils.integrate(Ks, shot_trispectrum, batch_size=2) if not torchquad else qeutils.integrate_vegas(Ks, shot_trispectrum)
-            print("Done with shot trispectrum")
-            out_shot_trispectrum[tuple(keypair)] = shot_result
-            out_shot_trispectrum[(key2, key1)] = out_shot_trispectrum[tuple(keypair)]
+
+            if ((key1 == "n") and (key2 == "n")) or ((key1 == "sa") and (key2 == "sa")):
+                torchquad = True
+                shot_trispectrum = qeutils.shot_trispectrum(w_A, w_B, P_AA_signal, bispectrum_cont, nbar_A, kmin, kmax, Nsamples_base=400//20, torchquad = True)
+                shot_result = qeutils.integrate(Ks, shot_trispectrum, batch_size=2) if not torchquad else qeutils.integrate_vegas(Ks, shot_trispectrum)
+                print("Done with shot trispectrum")
+                out_shot_trispectrum[tuple(keypair)] = shot_result
+                out_shot_trispectrum[(key2, key1)] = out_shot_trispectrum[tuple(keypair)]
 
 
-            shot_bispectrum = qeutils.shot_bispectrum(w_A, nbar_A, P_AA_signal, kmin, kmax, Nsamples_base=Nsamples_base)
-            shot_bispectrum_result = qeutils.integrate(Ks, shot_bispectrum, batch_size=2)
+                shot_bispectrum = qeutils.shot_bispectrum(w_A, nbar_A, P_AA_signal, kmin, kmax, Nsamples_base=Nsamples_base)
+                shot_bispectrum_result = qeutils.integrate(Ks, shot_bispectrum, batch_size=2)
 
-            shot_bispectrum_alternative = qeutils.shot_bispectrum_alternative(w_A, nbar_A, P_AA_signal, kmin, kmax, Nsamples_base=Nsamples_base, Norm_K = lambda K: jnp.interp(K, Ks, out_normalization_AB[tuple(keypair)]**-1.))
-            shot_bispectrum_alternative_result = qeutils.integrate(Ks, shot_bispectrum_alternative, batch_size=2)
+                #shot_bispectrum_alternative = qeutils.shot_bispectrum_alternative(w_A, nbar_A, P_AA_signal, kmin, kmax, Nsamples_base=Nsamples_base, Norm_K = lambda K: jnp.interp(K, Ks, out_normalization_AB[tuple(keypair)]**-1.))
+                #shot_bispectrum_alternative_result = qeutils.integrate(Ks, shot_bispectrum_alternative, batch_size=2)
+                #out_shot_bispectrum[tuple(keypair)] = shot_bispectrum_result
+                #print("shot_bispectrum_alternative_result", shot_bispectrum_alternative_result/shot_bispectrum_result)
 
-            out_shot_bispectrum[tuple(keypair)] = shot_bispectrum_result
-            
-            print("shot_bispectrum_alternative_result", shot_bispectrum_alternative_result/shot_bispectrum_result)
-
-            out_shot_bispectrum[(key2, key1)] = out_shot_bispectrum[tuple(keypair)]
+                out_shot_bispectrum[tuple(keypair)] = shot_bispectrum_result
+                out_shot_bispectrum[(key2, key1)] = out_shot_bispectrum[tuple(keypair)]
 
             #AB-XY = AB-AB
             #
