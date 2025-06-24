@@ -1,10 +1,10 @@
 """
-Quick theory code for experimentation.
+Theory code
 """
-import sys
-sys.path.append('/users/odarwish/lenscarf/lib/python3.12/site-packages')
-sys.path.append('/users/odarwish/qeep/')
 
+#import sys
+#sys.path.append('/users/odarwish/lenscarf/lib/python3.12/site-packages')
+#sys.path.append('/users/odarwish/qeep/')
 
 from qeep import qeutils
 import jax
@@ -18,115 +18,11 @@ from pathlib import Path
 from tqdm import tqdm
 
 
-def run_analysis(config_path, config_path_hod):
-    # Load configuration
-    with open(config_path, 'r') as file:
-        config = yaml.safe_load(file)
+def get_kernels():
 
-    with open(config_path_hod, 'r') as file:
-        config_hod = yaml.safe_load(file)
-    
-    # Extract parameters from config
-    ps_config = config['power_spectrum']
+    K, q1, q2, mu = sp.symbols('K q1 q2 mu')
 
-    kr_config = config['k_range']
-    sampling_config = config['sampling']
-    output_config = config['output']
-
-    sim_params = config_hod['sim_params']
-
-    skip_variance = config['skip_variance']
-    
-    # Load power spectrum data
-    knl, pnl = np.loadtxt(ps_config['main_directory']+config['name']+"/"+ps_config['nonlinear']).T
-    kl, pl = np.loadtxt(ps_config['main_directory']+config['name']+"/"+ps_config['linear']).T
-    
-    interpolate_function = qeutils.get_interpolated(knl, pnl)
-    interpolate_function_lin = qeutils.get_interpolated(kl, pl)
-    
-    q1, q2, mu = sp.symbols('q1 q2 mu')
-    
-    sim_name_base = config['sim_params']['sim_name_base']
-
-
-    for sim_index in config['sim_params']['sim_list']:
-        print(f"Processing simulation {sim_index}")
-
-        sim_name = sim_name_base + f"{sim_index:03}"
-        z_mock = sim_params['z_mock']
-        scratch = f"/users/odarwish/scratch/ABACUS/abacus_out/{sim_name}/z{z_mock:.3f}/galaxies/"
-
-        samples = config["sim_params"]["samples"]
-        
-        out_info_A = np.load(scratch+f"{samples[0]}_out_info.npy", allow_pickle=True).item()
-        out_info_B = np.load(scratch+f"{samples[1]}_out_info.npy", allow_pickle=True).item()
-        
-        b10_A = out_info_A['b1']
-        b10_B = out_info_B['b1']
-        b20_A = out_info_A['b2']
-        b20_B = out_info_B['b2']
-        bs2_A = out_info_A['bs']
-        bs2_B = out_info_B['bs']
-
-        # Number density parameters
-        nbar_A = out_info_A['nbar']
-        nbar_B = out_info_B['nbar']
-
-        b10_A = 1.6
-        nbar_A = 3.3e-4
-        nshot_A = 1/nbar_A
-
-        Ptot_A = out_info_A['Ptot']
-        Ptot_B = Ptot_A #out_info_B['Ptot']
-
-        Ptot_A = b10_A**2*pnl+nshot_A
-
-        b10_B = b10_A
-        b20_B = b20_A
-        print("Comparing b20s (sim vs theory), A and B", b20_A, qeutils.b2_fid(b10_A), b20_B, qeutils.b2_fid(b10_B))
-        bs2_B = bs2_A
-        nbar_B = nbar_A
-
-        print("nbar_A", nbar_A)
-        
-        kA = out_info_A['k']
-        kB = out_info_B['k']
-        P_AA = qeutils.get_interpolated(kA, Ptot_A)
-        P_BB = P_AA #qeutils.get_interpolated(kB, out_info_B['Ptot'])
-
-        P_AB = qeutils.get_interpolated(kl, b10_A*b10_B*pl)
-        P_linear = jax.jit(lambda k: interpolate_function_lin(k))
-
-        P_AA_signal = qeutils.get_interpolated(kA, b10_A**2*pl)
-        P_A_signal = qeutils.get_interpolated(kA, b10_A*pl)
-        P_BB_signal = P_AA_signal #qeutils.get_interpolated(kB, b10_B**2*pl)
-        P_AB_signal = qeutils.get_interpolated(kl, b10_A*b10_B*pl)
-
-        # Keypairs and estimator keys
-        keypairs = config['keypairs']
-        estimator_keys = config['estimator_keys']
-        
-        # k-range parameters
-        kmin = kr_config['kmin']
-        kmax = kr_config['kmax']
-        k_samples = kr_config['k_samples']
-        k_min_analysis = kr_config['k_min_analysis']
-        k_max_analysis = kr_config['k_max_analysis']
-        
-        #Ks = np.linspace(k_min_analysis, k_max_analysis, k_samples)
-        kmin_max = 2*k_min_analysis
-        Ks_ = np.linspace(k_min_analysis, kmin_max, 20)
-        Ks = np.logspace(np.log10(kmin_max), np.log10(k_max_analysis), k_samples)
-        Ks = np.concatenate([Ks_, Ks])
-        Ks = np.unique(Ks)
-        
-        # Sampling parameters
-        Nsamples_base = sampling_config['Nsamples_base']
-
-        M = lambda x: sp.sqrt(x**2.+1e-10)
-        
-        # Define estimator configs
-        estimator_configs = {
+    estimator_configs = {
             'g': {
                 'F': 17/21*q1/q1,
                 'ca': 1., 
@@ -161,52 +57,158 @@ def run_analysis(config_path, config_path_hod):
                 'cb': +1.
             },
             'n': {
-                'F': -mu*q2/q1, #k short/k long, so q2 is the small-scale mode = k, and q1 is the long-mode = K
+                'F': 2*mu*q1/K, #k short/k long, so q1 is the small-scale mode = k, and K is the long-mode
                 'ca': 1,
                 'cb': 0
             }
         }
-        #expr_phiphi = sympy.parsing.sympy_parser.parse_expr("M(r(q1**2+q2**2+2*q1*q2*mu))*1/M(q1)*1/M(q2)")
-        #mod = sympy2jax.SymbolicModule(expr, {sympy.Function("M": M, "r": jnp.sqrt)})
-        #'phiphi': {
-        #    'F': M(sp.sqrt(q1**2.+q2**2.+2*q1*q2*mu)) \
-        #        * (1./M(q1)) * (1./M(q2)),
-        #    'ca': 1, 
-        #    'cb': 1
-        #},
-        #expr_c11 = sympy.parsing.sympy_parser.parse_expr("0.5*(1/M(q1)+1/M(q2))")
-        #mod = sympy2jax.SymbolicModule(expr, {sympy.Function("M": M, "r": jnp.sqrt)})
-        #expr_c01 = sympy.parsing.sympy_parser.parse_expr("0.5 * mu*q1*q2 * (1/(q1**2*M(q2))+1/(q2**2*M(q1)))")
-        #mod = sympy2jax.SymbolicModule(expr, {sympy.Function("M": M, "r": jnp.sqrt)})
-        #expr_c02 = sympy.parsing.sympy_parser.parse_expr("1/(M(q1)*M(q2))")
-        #mod = sympy2jax.SymbolicModule(expr, {sympy.Function("M": M, "r": jnp.sqrt)})
-        """
-            'c11': {
-                'F': 0.5*(1./M(q1)+1./M(q2)),
-                'ca': 1, 
-                'cb': 1
-            },
-            'c01': {
-                'F': 0.5 * mu*q1*q2 \
-                * (1./(q1**2.*M(q2))+1./(q2**2.*M(q1))),
-                'ca': 1, 
-                'cb': 1
-            },
-            'c02': {
-                'F': (1./(M(q1)*M(q2))),
-                'ca': 1, 
-                'cb': 1
-            }
-        """
+    
+    return estimator_configs
+
+
+def run_analysis(config_path, config_path_hod):
+    # Load configuration
+    with open(config_path, 'r') as file:
+        config = yaml.safe_load(file)
+    
+    # Extract parameters from config
+    ps_config = config['power_spectrum']
+
+    kr_config = config['k_range']
+    sampling_config = config['sampling']
+    output_config = config['output']
+
+    skip_variance = config['skip_variance']
+    
+    # Load power spectrum data
+    knl, pnl = np.loadtxt(ps_config['main_directory']+config['name']+"/"+ps_config['nonlinear']).T
+    kl, pl = np.loadtxt(ps_config['main_directory']+config['name']+"/"+ps_config['linear']).T
+    
+    interpolate_function = qeutils.get_interpolated(knl, pnl)
+    interpolate_function_lin = qeutils.get_interpolated(kl, pl)
+    
+    sim_name_base = config['sim_params']['sim_name_base']
+
+
+    for sim_index in config['sim_params']['sim_list']:
+        print(f"Processing simulation {sim_index}")
+
+        sim_name = sim_name_base + f"{sim_index:03}"
+
+
+        #if we have a HOD config, we use it to get the bias and shot noise parameters
+        if config_path_hod is not None:
+            with open(config_path_hod, 'r') as file:
+                config_hod = yaml.safe_load(file)
+            sim_params = config_hod['sim_params']
+            z_mock = sim_params['z_mock']
+            scratch = f"/users/odarwish/scratch/ABACUS/abacus_out/{sim_name}/z{z_mock:.3f}/galaxies/"
+
+            samples = config["sim_params"]["samples"]
+            
+            out_info_A = np.load(scratch+f"{samples[0]}_out_info.npy", allow_pickle=True).item()
+            out_info_B = np.load(scratch+f"{samples[1]}_out_info.npy", allow_pickle=True).item()
+            
+            b10_A = out_info_A['b1']
+            b10_B = out_info_B['b1']
+            b20_A = out_info_A['b2']
+            b20_B = out_info_B['b2']
+            bs2_A = out_info_A['bs']
+            bs2_B = out_info_B['bs']
+
+            # Number density parameters
+            nbar_A = out_info_A['nbar']
+            nbar_B = out_info_B['nbar']
+
+
+            Ptot_A = out_info_A['Ptot']
+            Ptot_B = out_info_B['Ptot']
+
+            kA = out_info_A['k']
+            kB = out_info_B['k']
+
+            # Save results to files
+            filename_prefix = output_config['filename_prefix']+f"_{sim_name}_z{z_mock:.3f}_{samples[0]}_{samples[1]}"
+
+            bs2_fid = qeutils.bs2_coev(b10_A)
+            b2_fid = qeutils.b2_fid(b10_A)
+
+            print("Comparing b20s (sim vs theory), A and B", "A", b20_A, "theory", qeutils.b2_fid(b10_A), "B", b20_B, "theory", qeutils.b2_fid(b10_B))
+            print("Comparing bs2s (sim vs theory), A and B", "A", bs2_A, "theory", qeutils.bs2_coev(b10_A), "B", bs2_B, "theory", qeutils.bs2_coev(b10_B))
+
+        else:
+
+            biases_config = config['bias']
+            nbar_config = config['number_density']
+
+            b10_A = biases_config['b10_A']
+            nbar_A = nbar_config['nbar_A']
+
+            b10_B = biases_config['b10_B']
+            nbar_B = nbar_config['nbar_B']
+
+            nshot_A = 1/nbar_A
+            nshot_B = 1/nbar_B
+
+            Ptot_A = b10_A**2*pnl+nshot_A
+            Ptot_B = b10_B**2*pnl+nshot_B
+
+            kA, kB = kl, kl
+
+            filename_prefix = output_config['filename_prefix']+"_theory"
+
+            bs2_fid_A = qeutils.bs2_coev(b10_A)
+            b2_fid_A = qeutils.b2_fid(b10_A)
+
+            bs2_fid_B = qeutils.bs2_coev(b10_B)
+            b2_fid_B = qeutils.b2_fid(b10_B)
+
+            b2_fid = b2_fid_A
+            bs2_fid = bs2_fid_A 
+
+        #b2_fid, bs2_fid are used in the bispectrum for the shot-trispectrum calculations. Ideally, you would want a cross-trispectrum.
+        #For computational ease, I just insert the trispectrum for a single tracer here.
+
+        P_AA = qeutils.get_interpolated(kA, Ptot_A)
+        P_BB = qeutils.get_interpolated(kB, Ptot_B)
+
+        P_AB = qeutils.get_interpolated(kl, b10_A*b10_B*pl)
+        P_linear = jax.jit(lambda k: interpolate_function_lin(k))
+
+        P_AA_signal = qeutils.get_interpolated(kA, b10_A**2*pl)
+        P_A_signal = qeutils.get_interpolated(kA, b10_A*pl)
+        P_BB_signal = qeutils.get_interpolated(kB, b10_B**2*pl)
+        P_AB_signal = qeutils.get_interpolated(kl, b10_A*b10_B*pl)
+
+        # Keypairs and estimator keys
+        keypairs = config['keypairs'] #this is where we loop over the keypairs
+        
+        # k-range parameters
+        kmin = kr_config['kmin']
+        kmax = kr_config['kmax']
+        k_samples = kr_config['k_samples']
+        k_min_analysis = kr_config['k_min_analysis']
+        k_max_analysis = kr_config['k_max_analysis']
+        
+        #define modes on which we reconstruct
+        #Ks = np.linspace(k_min_analysis, k_max_analysis, k_samples)
+        kmin_max = 2*k_min_analysis
+        Ks_ = np.linspace(k_min_analysis, kmin_max, 20)
+        Ks = np.logspace(np.log10(kmin_max), np.log10(k_max_analysis), k_samples)
+        Ks = np.concatenate([Ks_, Ks])
+        Ks = np.unique(Ks)
+        
+        # Sampling parameters for Monte Carlo integration
+        Nsamples_base = sampling_config['Nsamples_base']        
+
+        estimator_configs = get_kernels()
         
         estimator_lam_jax = {key: sympy2jax.SymbolicModule(estimator_configs[key]['F']) for key in estimator_configs}
         
-        f_jax = {key: qeutils.get_f(estimator_lam_jax[key], P_linear, estimator_configs[key]["ca"], estimator_configs[key]["cb"]) for key in estimator_lam_jax}
+        f_jax = {key: qeutils.get_f(estimator_lam_jax[key], P_linear, estimator_configs[key]["ca"], estimator_configs[key]["cb"]) for key in estimator_lam_jax if key != "n"}
+        f_jax["n"] = qeutils.get_f_squeezed(estimator_lam_jax["n"], P_linear)
         
         Fkernels = [qeutils.Fg, qeutils.Fs, qeutils.Ft]
-        bs2_fid = qeutils.bs2_coev(b10_A)
-        b2_fid = qeutils.b2_fid(b10_A)
-        #b2_fid = -0.3
         Fbiases = [qeutils.bias_g(b10_A, b2_fid), qeutils.bias_s(b10_A), qeutils.bias_t(b10_A, bs2_fid)]
 
         # Prepare output directory
@@ -214,15 +216,16 @@ def run_analysis(config_path, config_path_hod):
         output_dir.mkdir(exist_ok=True, parents=True)
         
         # Run analysis
-        out_normalization_AB = {}
-        out_variance_AB = {}
-        out_cross_shot_AB = {}
-        out_shot_bispectrum = {}
-        out_shot_trispectrum = {}
+        out_normalization_AB = {} #this is the inverse of the normalization factor for the estimator
+        out_variance_AB = {} #this is the variance of the estimator
+        out_cross_shot_AB = {} #this is the cross-shot noise
+        out_shot_bispectrum = {} #this is the shot noise of the bispectrum, but assuming one single tracer
+        out_shot_trispectrum = {} #this is the shot noise of the trispectrum, but assuming one single tracer
 
-        out_normalization_BA = {}
-        out_variance_BA = {}
-        out_cross_shot_BA = {}
+        out_normalization_BA = {} #this is the inverse of the normalization factor for the estimator, swapping A and B
+        out_variance_BA = {} #this is the variance of the estimator, swapping A and B
+        out_cross_shot_BA = {} #this is the cross-shot noise, swapping A and B
+
 
         P_A_signal_jax = jax.jit(lambda k: P_A_signal(k))
         #P_BB_signal_jax = jax.jit(lambda k: P_BB_signal(k))
@@ -285,10 +288,6 @@ def run_analysis(config_path, config_path_hod):
             pbar.update(1)
         
         pbar.close()
-
-        
-        # Save results to files
-        filename_prefix = output_config['filename_prefix']+f"{sim_name}_z{z_mock:.3f}_{samples[0]}_{samples[1]}"
             
         # Save as NPY files
         np.save(output_dir / f"{filename_prefix}_normalization_AB.npy", out_normalization_AB)
@@ -305,9 +304,9 @@ def run_analysis(config_path, config_path_hod):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run noise and bias analysis using configuration from a YAML file.')
     parser.add_argument('--config', type=str, help='Path to the YAML configuration file', default='config_abacus_thy.yaml')
-    parser.add_argument('--config_hod', type=str, help='Path to the HOD configuration file', default='config_hod_0.yaml')
+    parser.add_argument('--config_hod', type=str, help='Path to the HOD configuration file', default = None) #default='config_hod_0.yaml')
     parser.add_argument('--config_dir', type=str, help='Path to the configuration directory', default='../configs/abacus/')
     args = parser.parse_args()
     
-    run_analysis(args.config_dir + "/" + args.config, args.config_dir + "/" + args.config_hod)
+    run_analysis(args.config_dir + "/" + args.config, args.config_dir + "/" + args.config_hod if args.config_hod is not None else None)
 

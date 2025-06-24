@@ -1,27 +1,27 @@
 # Scripts
 
-This directory contains Python scripts for quadratic estimator analyses:
+## Quick start
 
-- `abacus_galaxies.py`, process galaxy catalogs generated from Abacaus (see below)
-- `abacus_theory.py`, calculates normalization, variance, shot reconstruction noise
-- `abacus_recs.py`,
+To get some theory curves with custom biases and shot noises:
 
-Examples:
-`python abacus_theory.py `
+`python thy.py --config $name_config_file.yaml$ --config_dir $name_config_dir$`
 
+Example:
 
-
-- **run_recs.py**: Run quadratic estimator reconstruction algorithms
-- **analyze_abacus.py**: Tools for analyzing quadratic estimator results on Abacus data
-- **generate_abacus_products.py**: Generate products for the Abacus simulations, such as power spectra, to cross-check results
-- **run_theory.py**: Calculates normalization, variance, shot reconstruction noise
+`python thy.py --config config_abacus_thy.yaml --config_dir ../configs/abacus/`
 
 
-## Running with Abacus
+If you want to include results from Abacus simulations, then:
 
-### Galaxies
+`python thy.py --config $name_config_file.yaml$ --config_dir $name_config_dir$ --config_hod $name_config_hod.yaml$`
 
-To run with Abacus galaxies, first you need to populate halos with some HOD. 
+To run results with abacus simulations
+
+### Running with Abacus
+
+#### Galaxies
+
+To run with Abacus galaxies, first you need to populate halos with some HOD.
 
 Following https://abacusutils.readthedocs.io/en/latest/hod.html these are the steps:
 
@@ -37,5 +37,4 @@ Following https://abacusutils.readthedocs.io/en/latest/tutorials/analysis/zcv.ht
 * `python -m abacusnbody.hod.zcv.advect_fields --path2config PATH2CONFIG`
 
 
-
-### Matter
+## Forecasts

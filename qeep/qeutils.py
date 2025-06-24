@@ -191,6 +191,20 @@ def get_f(F, P_linear, a, b):
     return result
   return f
 
+def get_f_squeezed(f, P_linear):
+  """
+  Returns function for f(k, K, mu)*P_linear(k). Useful for the squeezed limit of the full f.
+  """
+  @jax.jit
+  def f_squeezed(k1, k2):
+    K = k1+k2
+    K_mag = jnp.linalg.norm(K, axis=-1)
+    k1_mag = jnp.linalg.norm(k1, axis=-1)
+    mu_1 = cosine_angle(K, k1, K_mag, k1_mag)
+    result = f(q1 = k1_mag, K = K_mag, mu = mu_1)*P_linear(k1_mag) #note, here we explictly use q1, K, mu for the squeezed limit
+    return result
+  return f_squeezed
+
 
 def N_per_mode(f_jax_A: callable, f_jax_B: callable, P_AA: callable, P_BB: callable,
                kmin: float = 0.015, kmax: float = 0.15, Ndim = 2, Nsamples_base = 10000, gauss_filter = False):

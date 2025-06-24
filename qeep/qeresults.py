@@ -40,6 +40,11 @@ class QEResults:
         k_min_analysis = kr_config['k_min_analysis']
         k_max_analysis = kr_config['k_max_analysis']
 
+        self.kmin = kmin
+        self.kmax = kmax
+        self.k_min_analysis = k_min_analysis
+        self.k_max_analysis = k_max_analysis
+
         kmin_max = 2*k_min_analysis
         Ks_ = jnp.linspace(k_min_analysis, kmin_max, 20)
         Ks = jnp.logspace(jnp.log10(kmin_max), jnp.log10(k_max_analysis), k_samples)
@@ -50,14 +55,14 @@ class QEResults:
         result = {}
         for key, value in self.out_normalization_AB.items():
             value = np.array(value)
-            value[value<1e-10] = 0
+            value[np.abs(value)<1e-10] = 0
             result[key] = jnp.array(value)
         return result
 
     def get_get_norm(self):
         def get_norm(key):
             N = np.array(self.out_normalization_AB[(key, key)]**-1.)
-            N[N>1e10] = 0
+            N[np.abs(N)>1e10] = 0
             N = jnp.array(N)
             return N
         return get_norm
