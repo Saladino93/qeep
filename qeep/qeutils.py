@@ -5,12 +5,12 @@ Check torchquad documentation, https://torchquad.readthedocs.io/en/latest/tutori
 -Save points
 -Re-use saved points
 """
-
+import numpy as np
 import jax
 import jax.numpy as jnp
 from torchquad import MonteCarlo, Boole
 from torchquad import set_up_backend  # Necessary to enable GPU support
-set_up_backend("jax", data_type="float32")
+set_up_backend("jax", data_type="float64")
 
 import vegas
 
@@ -308,6 +308,44 @@ def get_w(f, P_AA, P_BB):
       return w
 
 
+def get_full_w(f, P_AA, P_BB, P_AB):
+      """
+      Unnormalized Weight function w that depends on f and the total power spectra of tracers.
+
+      The weight is the optimal QE one for Gaussian noise.
+
+      This implementation is optimized for batch processing with Vegas integration.
+      It assumes k1 and k2 are 3D vectors, potentially with batch dimensions.
+      """
+
+      @jax.jit
+      def w(k1, k2):
+          # Calculate magnitudes
+          k1_mag = jnp.linalg.norm(k1, axis=-1)
+          k2_mag = jnp.linalg.norm(k2, axis=-1)
+
+          # Get the f function value using vectors
+          f_value_k1_k2 = f(k1, k2)
+          f_value_k2_k1 = f(k2, k1)
+
+          # Get power spectrum values for the tracers
+          P_AA_value_k1 = P_AA(k1_mag)
+          P_BB_value_k2 = P_BB(k2_mag)
+          P_AA_value_k2 = P_AA(k2_mag)
+          P_BB_value_k1 = P_BB(k1_mag)
+          P_AB_value_k1 = P_AB(k1_mag)
+          P_AB_value_k2 = P_AB(k2_mag)
+
+          
+          denominator = 2.0 * (P_AA_value_k1 * P_BB_value_k1 * P_AA_value_k2 * P_BB_value_k2 - P_AB_value_k1**2 * P_AB_value_k2**2)
+
+          numerator = f_value_k1_k2 * P_AA_value_k2 * P_BB_value_k2 - f_value_k2_k1 * P_AB_value_k1 * P_AB_value_k2
+          result = numerator / denominator
+          return result
+
+      return w
+
+
 
 def variance_per_mode(weight_AB_alpha: callable, weight_XY_beta: callable,
                       P_AX: callable, P_BY: callable, P_AY: callable, P_BX: callable, kmin: float = 0.051, kmax: float = 0.15,
@@ -377,6 +415,7 @@ def variance_per_mode_fast(weight_AB_alpha: callable, weight_XY_beta: callable,
             w_result_AB = weight_AB_alpha(k1, k2)
             w_result_XY_1 = weight_XY_beta(k1, k2)
             w_result_XY_2 = weight_XY_beta(k2, k1)
+  
             P_AX_value = P_AX(k1_mag)
             P_BY_value = P_BY(k2_mag)
             P_AY_value = P_BY(k1_mag)
@@ -686,9 +725,9 @@ def shot_trispectrum(weight_AB_alpha: callable, weight_XY_beta: callable,
             minus_k1_minus_k1_p_mag = jnp.linalg.norm(minus_k1_minus_k1_p, axis = -1)
 
             mask_all = 1.
-            #mask_all = maskf(k1_plus_k1_p_mag, kmin, kmax)
-            #mask_all *= maskf(k1_plus_k2_p_mag, kmin, kmax)
-            #mask_all *= maskf(minus_k1_minus_k1_p_mag, kmin, kmax)
+            mask_all = maskf(k1_plus_k1_p_mag, kmin, kmax)
+            mask_all *= maskf(k1_plus_k2_p_mag, kmin, kmax)
+            mask_all *= maskf(minus_k1_minus_k1_p_mag, kmin, kmax)
             
 
             pgcont_1 = P_cont(k1_mag)

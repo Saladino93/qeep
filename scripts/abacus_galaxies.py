@@ -92,7 +92,7 @@ def main(config_path, config_path_hod):
         mock_dict[sample] = galaxies
 
         load_presaved = False
-        zcv_dict = newBall.apply_zcv(mock_dict, config_hod, load_presaved=load_presaved)
+        zcv_dict = newBall.aba(mock_dict, config_hod, load_presaved=load_presaved)
 
 
         sim_name = config_hod['sim_params']['sim_name']
@@ -142,7 +142,7 @@ def main(config_path, config_path_hod):
         b_2 = zcv_dict['bias'][1]
         b_s = zcv_dict['bias'][2]
 
-        b_2_eul =  2*(a1 + a2)*zcv_dict['bias'][0]+ a2*zcv_dict['bias'][1]
+        b_2_eul =  2*(a1 + a2)*zcv_dict['bias'][0]+ a2*zcv_dict['bias'][1] #from bias review, also check Abidi and Baldauf, 2.32
         b_s_eul = -2/7*zcv_dict['bias'][0]+zcv_dict['bias'][2]
 
         out_info['b1'] = b_1

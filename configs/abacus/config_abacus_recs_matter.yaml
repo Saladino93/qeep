@@ -1,4 +1,4 @@
-name: abacus_recs
+name: abacus_recs_matter
 
 sim_params:
   #sim_name: "AbacusSummit_base_c000_ph000"
@@ -12,7 +12,7 @@ sim_params:
   interlaced: True
   compensated: True
   paste: 'TSC'
-  samples: ['LRG', 'LRG']
+  samples: ['LRG', 'matter']
 
 # Power spectrum file paths
 power_spectrum:

@@ -1,18 +1,18 @@
-name: abacus_recs
+name: desi_base
 
 sim_params:
   #sim_name: "AbacusSummit_base_c000_ph000"
   sim_name_base: "AbacusSummit_base_c000_ph"
   z_mock: 0.5
   cleaned_halos: True
-  sim_list: [0, 1]
+  sim_list: [0]
   ngrid: 576
   nthread: 128
   box: 2000
   interlaced: True
   compensated: True
   paste: 'TSC'
-  samples: ['LRG', 'LRG']
+  samples: ['LRG', 'ELG']
 
 # Power spectrum file paths
 power_spectrum:
@@ -32,7 +32,7 @@ k_range:
 
 # Sampling parameters
 sampling:
-  Nsamples_base: 10000
+  Nsamples_base: 5000 #10000
 
 # Physics parameters
 physics:
@@ -41,28 +41,46 @@ physics:
   a2: -0.8095238095
   Fg_factor: 17/21
 
+# Bias parameters
+#higher order bias parameters can be calculated from semi-analytical expressions/theory.
+bias:
+  b10_A: 1.6
+  b10_B: 1.6
+
+# Number density parameters
+number_density:
+  nbar_A: 3.0e-4
+  nbar_B: 3.0e-4
 
 # Keypairs for analysis
 #specify quantity: "all", "N", "V", "T", "B", "Bcross"
 #N for normalization, V for variance, T for trispectrum, B for bispectrum, Bcross for cross-shot bispectrum
 keypairs:
-  - [["n", "n"], ["all"]]
-  - [["s", "n"], ["N"]]
-  - [["g", "n"], ["N"]]
-  - [["t", "n"], ["N"]]
-  - [["g", "g"], ["all"]]
-  - [["s", "s"], ["all"]]
-  - [["t", "t"], ["all"]]
+  #- [["n", "n"], ["N", "V"]] #["all"]]
+  #- [["s", "n"], ["N"]]
+  #- [["g", "n"], ["N"]]
+  #- [["t", "n"], ["N"]]
+  #- [["g", "g"], ["all"]]
+  #- [["s", "s"], ["N", "V"]] #["all"]]
+  #- [["t", "t"], ["all"]]
+  #- [["g", "s"], ["N"]]
+  #- [["g", "t"], ["N"]]
+  #- [["s", "t"], ["N"]]
+  #- [["n", "ga"], ["N"]]
+  #- [["n", "sa"], ["N"]]
+  #- [["n", "ta"], ["N"]]
+  #- [["sa", "sa"], ["all"]]
+  #- [["ga", "ga"], ["N", "V"]]
+  #- [["sa", "sa"], ["N", "V"]]
+  #- [["ta", "ta"], ["N", "V"]]
+  - [["g", "sa"], ["N"]]
+  - [["g", "ta"], ["N"]]
+  - [["g", "ga"], ["N"]]
   - [["g", "s"], ["N"]]
   - [["g", "t"], ["N"]]
-  - [["s", "t"], ["N"]]
-  - [["n", "ga"], ["N"]]
-  - [["n", "sa"], ["N"]]
-  - [["n", "ta"], ["N"]]
-  - [["sa", "sa"], ["all"]]
-  
-  
-
+  - [["g", "g"], ["N", "V"]]
+  #- [["sa", "sa"], ["N", "V"]]
+  #- [["s", "ta"], ["N"]]
 
 # Estimator keys
 estimator_keys:

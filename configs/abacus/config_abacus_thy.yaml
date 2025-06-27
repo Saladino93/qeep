@@ -21,17 +21,10 @@ power_spectrum:
   linear: "linear_power_abacus.txt"
 
 # Bias parameters
+#higher order bias parameters can be calculated from semi-analytical expressions/theory.
 bias:
   b10_A: 1.0
   b10_B: 1.0
-  b20_A: 0.0
-  b20_B: 0.0
-  bs2_A: 0.0
-  bs2_B: 0.0
-  bthetaA: 0.3
-  bthetaB: 0.5
-  brA: 1.0
-  brB: 2.0
 
 # Number density parameters
 number_density:
@@ -59,43 +52,23 @@ physics:
   a2: -0.8095238095
   Fg_factor: 17/21
 
-skip_variance: True
 
 # Keypairs for analysis
 keypairs:
-  #- ["x1", "n"]
-  #- ["x2", "n"]
-  - ["n", "n"]
-  - ["n", "g"]
-  - ["n", "s"]
-  #- ["x", "n"]
-  - ["n", "t"]
-  - ["g", "g"]
-  #- ["s", "s"]
-  #- ["t", "t"]
-  - ["g", "s"]
-  - ["g", "t"]
-  - ["g", "sa"]
-  - ["g", "ta"]
-  - ["g", "ga"]
-  #- ["s", "t"]
-  - ["n", "ga"]
-  - ["n", "sa"]
-  - ["n", "ta"]
-  - ["sa", "sa"]
-  - ["t", "sa"]
-  - ["ta", "sa"]
-  - ["ga", "sa"]
-  - ["sa", "sa"]
-  - ["s", "sa"]
-  #- ["a", "a"]
-  #- ["b", "b"]
-# Estimator keys
-estimator_keys:
-  - "n"
-  - "g"
-  - "s"
-  - "t"
+  - [["n", "n"], ["all"]]
+  - [["s", "n"], ["N"]]
+  - [["g", "n"], ["N"]]
+  - [["t", "n"], ["N"]]
+  - [["g", "g"], ["all"]]
+  - [["s", "s"], ["all"]]
+  - [["t", "t"], ["all"]]
+  - [["g", "s"], ["N"]]
+  - [["g", "t"], ["N"]]
+  - [["s", "t"], ["N"]]
+  - [["n", "ga"], ["N"]]
+  - [["n", "sa"], ["N"]]
+  - [["n", "ta"], ["N"]]
+  - [["sa", "sa"], ["all"]]
 
 # Output configuration
 output:

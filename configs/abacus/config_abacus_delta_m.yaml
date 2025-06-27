@@ -1,24 +1,35 @@
-name: abacus_recs
+name: abacus_delta_m
 
 sim_params:
   #sim_name: "AbacusSummit_base_c000_ph000"
   sim_name_base: "AbacusSummit_base_c000_ph"
   z_mock: 0.5
   cleaned_halos: True
-  sim_list: [0, 1]
+  sim_list: [0]
   ngrid: 576
   nthread: 128
   box: 2000
   interlaced: True
   compensated: True
   paste: 'TSC'
-  samples: ['LRG', 'LRG']
+  samples: ['LRG', 'ELG']
 
 # Power spectrum file paths
 power_spectrum:
   main_directory: "../results/"
   nonlinear: "nonlinear_power_abacus.txt"
   linear: "linear_power_abacus.txt"
+
+# Bias parameters
+#higher order bias parameters can be calculated from semi-analytical expressions/theory.
+bias:
+  b10_A: 1.0
+  b10_B: 1.0
+
+# Number density parameters
+number_density:
+  nbar_A: 1000
+  nbar_B: 1000
 
 # k-range parameters
 k_range:
@@ -41,37 +52,23 @@ physics:
   a2: -0.8095238095
   Fg_factor: 17/21
 
-
 # Keypairs for analysis
-#specify quantity: "all", "N", "V", "T", "B", "Bcross"
-#N for normalization, V for variance, T for trispectrum, B for bispectrum, Bcross for cross-shot bispectrum
 keypairs:
-  - [["n", "n"], ["all"]]
+  - [["n", "n"], ["N", "V"]]
   - [["s", "n"], ["N"]]
   - [["g", "n"], ["N"]]
   - [["t", "n"], ["N"]]
-  - [["g", "g"], ["all"]]
-  - [["s", "s"], ["all"]]
-  - [["t", "t"], ["all"]]
+  - [["g", "g"], ["N", "V"]]
+  - [["s", "s"], ["N", "V"]]
+  - [["t", "t"], ["N", "V"]]
   - [["g", "s"], ["N"]]
   - [["g", "t"], ["N"]]
   - [["s", "t"], ["N"]]
-  - [["n", "ga"], ["N"]]
-  - [["n", "sa"], ["N"]]
-  - [["n", "ta"], ["N"]]
-  - [["sa", "sa"], ["all"]]
-  
-  
-
-
-# Estimator keys
-estimator_keys:
-  - "n"
-  - "g"
-  - "s"
-  - "t"
+  - [["sa", "sa"], ["N", "V"]]
+  - [["ga", "ga"], ["N", "V"]]
+  - [["ta", "ta"], ["N", "V"]]
 
 # Output configuration
 output:
   directory: "../results/"
-  filename_prefix: "analysis" 
+  filename_prefix: "analysis_delta_m" 

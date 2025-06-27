@@ -6,17 +6,24 @@ import pathlib
 
 
 class QEResults:
-    def __init__(self, config):
+    def __init__(self, config, sims = False):
 
         name_config = config['name']
         output_config = config['output']
         output_dir = pathlib.Path(output_config['directory'])/name_config
 
-        nome = "analysisAbacusSummit_base_c000_ph000_z0.500_LRG_ELG_normalization_AB.npy"
-        nomev = "analysisAbacusSummit_base_c000_ph000_z0.500_LRG_ELG_variance_AB.npy"
-        nometri = "analysisAbacusSummit_base_c000_ph000_z0.500_LRG_ELG_shot_trispectrum_AB.npy"
-        nomebis_mixed = "analysisAbacusSummit_base_c000_ph000_z0.500_LRG_ELG_cross_shot_AB.npy"
-        nomebis = "analysisAbacusSummit_base_c000_ph000_z0.500_LRG_ELG_shot_bispectrum_AB.npy"
+        if sims:
+            nome = "analysisAbacusSummit_base_c000_ph000_z0.500_LRG_ELG_normalization_AB.npy"
+            nomev = "analysisAbacusSummit_base_c000_ph000_z0.500_LRG_ELG_variance_AB.npy"
+            nometri = "analysisAbacusSummit_base_c000_ph000_z0.500_LRG_ELG_shot_trispectrum_AB.npy"
+            nomebis_mixed = "analysisAbacusSummit_base_c000_ph000_z0.500_LRG_ELG_cross_shot_AB.npy"
+            nomebis = "analysisAbacusSummit_base_c000_ph000_z0.500_LRG_ELG_shot_bispectrum_AB.npy"
+        else:
+            nome = f"analysis_theory_normalization_AB.npy"
+            nomev = f"analysis_theory_variance_AB.npy"
+            nomebis = f"analysis_theory_shot_bispectrum_AB.npy"
+            nomebis_mixed = f"analysis_theory_cross_shot_AB.npy"
+            nometri = f"analysis_theory_shot_trispectrum_AB.npy"
 
         self.out_normalization_AB = np.load(output_dir / nome, allow_pickle = True).item() #inverse of normalization N
 
