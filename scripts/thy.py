@@ -174,10 +174,10 @@ def run_analysis(config_path, config_path_hod):
             filename_prefix = output_config['filename_prefix']+"_theory"
 
             bs2_fid_A = qeutils.bs2_coev(b10_A)
-            b2_fid_A = qeutils.b2_fid(b10_A)
+            b2_fid_A = qeutils.b2_fid(b10_A) if "b2_A" not in biases_config else biases_config['b2_A']
 
             bs2_fid_B = qeutils.bs2_coev(b10_B)
-            b2_fid_B = qeutils.b2_fid(b10_B)
+            b2_fid_B = qeutils.b2_fid(b10_B) if "b2_B" not in biases_config else biases_config['b2_B']
 
             b2_fid = b2_fid_A
             bs2_fid = bs2_fid_A 
