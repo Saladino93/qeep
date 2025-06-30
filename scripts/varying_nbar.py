@@ -52,7 +52,7 @@ def run_config(config_file, rank):
 
 def main():
     # Find all config files
-    config_files = sorted(glob.glob("generated_configs/config_desi_base_*.yaml"))
+    config_files = sorted(glob.glob("../configs/abacus/desi_nbars/config_desi_base_*.yaml"))
     
     if not config_files:
         print("No config files found!")

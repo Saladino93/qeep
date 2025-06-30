@@ -6,14 +6,17 @@ To get some theory curves with custom biases and shot noises:
 
 `python thy.py --config $name_config_file.yaml$ --config_dir $name_config_dir$`
 
-Example:
-
-`python thy.py --config config_abacus_thy.yaml --config_dir ../configs/abacus/`
-
+Examples: 
+* Some quick run `python thy.py --config config_abacus_thy.yaml --config_dir ../configs/abacus/`
+* For matter field only `python thy.py --config config_abacus_delta_m.yaml --config_dir ../configs/abacus/`
+* For mixed fields `python thy.py --config config_desi_asymm.yaml --config_dir ../configs/abacus`
+* `python thy.py --config config_desi_asymm_full_var.yaml --config_dir ../configs/abacus`
 
 If you want to include results from Abacus simulations, then:
 
 `python thy.py --config $name_config_file.yaml$ --config_dir $name_config_dir$ --config_hod $name_config_hod.yaml$`
+
+Example: `python thy.py --config config_abacus_recs.yaml --config_dir ../configs/abacus/ --config_hod config_hod_0.yaml`
 
 To run results with abacus simulations
 

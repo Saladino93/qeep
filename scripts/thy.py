@@ -6,8 +6,12 @@ Theory code
 #sys.path.append('/users/odarwish/lenscarf/lib/python3.12/site-packages')
 #sys.path.append('/users/odarwish/qeep/')
 
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"  # Only GPU 3 will be visible to JAX
+
 from qeep import qeutils
 import jax
+
 jax.config.update('jax_enable_x64', True)
 import jax.numpy as jnp
 import numpy as np

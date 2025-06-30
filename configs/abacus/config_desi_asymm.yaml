@@ -17,6 +17,7 @@ sim_params:
 # Power spectrum file paths
 power_spectrum:
   main_directory: "../../results/"
+  #main_directory: "../results/"
   nonlinear: "nonlinear_power_abacus.txt"
   linear: "linear_power_abacus.txt"
 
@@ -46,6 +47,8 @@ physics:
 bias:
   b10_A: 1.6
   b10_B: 1.2
+  b2_A: -0.3
+  b2_B: -0.3
 
 # Number density parameters
 number_density:
@@ -56,11 +59,11 @@ number_density:
 #specify quantity: "all", "N", "V", "T", "B", "Bcross"
 #N for normalization, V for variance, T for trispectrum, B for bispectrum, Bcross for cross-shot bispectrum
 keypairs:
-  - [["n", "n"], ["N", "V"]] #["all"]]
+  - [["n", "n"], ["all"]]
   - [["s", "n"], ["N"]]
   - [["g", "n"], ["N"]]
   - [["t", "n"], ["N"]]
-  - [["g", "g"], ["N", "V"]]
+  - [["g", "g"], ["all"]]
   - [["s", "s"], ["N", "V"]]
   - [["t", "t"], ["N", "V"]]
   - [["g", "s"], ["N"]]
