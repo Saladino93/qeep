@@ -6,8 +6,6 @@ Theory code
 #sys.path.append('/users/odarwish/lenscarf/lib/python3.12/site-packages')
 #sys.path.append('/users/odarwish/qeep/')
 
-import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"  # Only GPU 3 will be visible to JAX
 
 from qeep import qeutils
 import jax
@@ -345,7 +343,11 @@ if __name__ == "__main__":
     parser.add_argument('--config', type=str, help='Path to the YAML configuration file', default='config_abacus_thy.yaml')
     parser.add_argument('--config_hod', type=str, help='Path to the HOD configuration file', default = None) #default='config_hod_0.yaml')
     parser.add_argument('--config_dir', type=str, help='Path to the configuration directory', default='../configs/abacus/')
+    parser.add_argument('--gpu', type=int, help='GPU to use', default=0)
     args = parser.parse_args()
+    
+    import os
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)  # Only GPU 3 will be visible to JAX
     
     run_analysis(args.config_dir + "/" + args.config, args.config_dir + "/" + args.config_hod if args.config_hod is not None else None)
 

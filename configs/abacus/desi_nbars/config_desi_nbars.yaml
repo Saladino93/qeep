@@ -32,7 +32,7 @@ k_range:
 
 # Sampling parameters
 sampling:
-  Nsamples_base: 10000
+  Nsamples_base: 5000
 
 # Physics parameters
 physics:

@@ -6,11 +6,12 @@ import pathlib
 
 
 class QEResults:
-    def __init__(self, config, sims = False):
+    def __init__(self, config, sims = False, relative_path = "."):
 
         name_config = config['name']
         output_config = config['output']
-        output_dir = pathlib.Path(output_config['directory'])/name_config
+        relative_path = pathlib.Path(relative_path)
+        output_dir = relative_path / output_config['directory'] / name_config
 
         if sims:
             nome = "analysisAbacusSummit_base_c000_ph000_z0.500_LRG_ELG_normalization_AB.npy"
@@ -33,9 +34,9 @@ class QEResults:
         self.out_shot_bispectrum = np.load(output_dir / nomebis, allow_pickle = True).item() #bispectrum shot noise, assuming all the same
 
 
-        ps_main_directory = config['power_spectrum']['main_directory']
-        self.gen_nl_power = np.loadtxt(ps_main_directory+name_config+"/"+config['power_spectrum']['nonlinear'])
-        self.gen_power = np.loadtxt(ps_main_directory+name_config+"/"+config['power_spectrum']['linear'])
+        ps_main_directory = relative_path / config['power_spectrum']['main_directory']
+        self.gen_nl_power = np.loadtxt(ps_main_directory/name_config/config['power_spectrum']['nonlinear'])
+        self.gen_power = np.loadtxt(ps_main_directory/name_config/config['power_spectrum']['linear'])
 
         self.pnlinf = lambda kmag: jnp.interp(kmag, self.gen_nl_power[:,0], self.gen_nl_power[:,1])
         self.plinf = lambda kmag: jnp.interp(kmag, self.gen_power[:,0], self.gen_power[:,1])

@@ -10,7 +10,8 @@ Examples:
 * Some quick run `python thy.py --config config_abacus_thy.yaml --config_dir ../configs/abacus/`
 * For matter field only `python thy.py --config config_abacus_delta_m.yaml --config_dir ../configs/abacus/`
 * For mixed fields `python thy.py --config config_desi_asymm.yaml --config_dir ../configs/abacus`
-* `python thy.py --config config_desi_asymm_full_var.yaml --config_dir ../configs/abacus`
+* Full variance `python thy.py --config config_desi_asymm_full_var.yaml --config_dir ../configs/abacus`
+* Varying number densities `python thy.py --config config_desi_base_21.yaml --config_dir ../configs/abacus/desi_nbars`
 
 If you want to include results from Abacus simulations, then:
 

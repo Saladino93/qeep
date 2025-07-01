@@ -14,7 +14,7 @@ k_range:
   k_max_analysis: 0.35
   k_min_analysis: 0.001
   k_samples: 150
-  kmax: 0.15
+  kmax: 0.25
   kmin: 0.051
 keypairs:
 - - - n
@@ -31,7 +31,7 @@ keypairs:
   - - N
 - - - g
     - g
-  - - all
+  - - N
 - - - t
     - g
   - - N
@@ -49,11 +49,11 @@ keypairs:
   - - N
 - - - sa
     - sa
-  - - all
-name: desi_base_5
+  - - N
+name: desi_base_26
 number_density:
-  nbar_A: 1.2742749857031322e-06
-  nbar_B: 1.2742749857031322e-06
+  nbar_A: 0.0018329807108324338
+  nbar_B: 0.0018329807108324338
 output:
   directory: ../results/
   filename_prefix: analysis

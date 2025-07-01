@@ -12,7 +12,7 @@ set_up_backend("jax", data_type="float64")
 
 
 
-def safe_inv(C, eps = 1e-8):
+def safe_inv(C, eps = 1e-40):
     """Safely invert a matrix or batch of matrices with regularization.
     
     Args:
@@ -83,7 +83,7 @@ def fisher_per_mode_single(v, K_array, Ofunc, variance_func):
                 F = F.at[:, b, a].set(product)
     return F
 
-def fisher_per_mode(v, K_array, Cfunc, eps=1e-8):
+def fisher_per_mode(v, K_array, Cfunc, eps=1e-30):
     """
     Compute the Fisher matrix per mode for a general covariance matrix C,
     where Cfunc(K_array, v) returns (n_modes, nprobes, nprobes).

@@ -1,6 +1,8 @@
 bias:
   b10_A: 1.6
   b10_B: 1.6
+  b2_A: -0.3
+  b2_B: -0.3
 estimator_keys:
 - n
 - g

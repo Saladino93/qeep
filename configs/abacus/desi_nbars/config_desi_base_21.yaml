@@ -50,10 +50,10 @@ keypairs:
 - - - sa
     - sa
   - - all
-name: desi_base_5
+name: desi_base_21
 number_density:
-  nbar_A: 1.2742749857031322e-06
-  nbar_B: 1.2742749857031322e-06
+  nbar_A: 3.0e-04
+  nbar_B: 3.0e-04
 output:
   directory: ../results/
   filename_prefix: analysis

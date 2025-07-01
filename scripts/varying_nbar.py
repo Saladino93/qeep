@@ -60,10 +60,14 @@ def main():
     
     # Initialize MPI communication
     mpi_comm = MPIComm(start=0, Ntot=len(config_files), do_mpi=True)
+
+    #set up which GPU to use among the four GPUs available for each rank, modulo 4
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(mpi_comm.rank % 4)
     
     if mpi_comm.rank == 0:
         print(f"Found {len(config_files)} config files")
         print(f"Running on {mpi_comm.size} MPI ranks")
+
     
     # Each rank processes its assigned files
     success_count = 0
