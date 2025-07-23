@@ -1,4 +1,4 @@
-name: abacus_0000_01
+name: abacus_0000_kmax_01
 
 sim_params:
   sim_name: "AbacusSummit_base_c000_ph000"

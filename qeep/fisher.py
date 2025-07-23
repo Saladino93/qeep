@@ -53,6 +53,33 @@ def safe_inv(C, eps = 1e-40):
         raise ValueError(f"Input must be at least 2D but got shape {shape}")
 
 
+
+
+def fisher_per_mode_single_with_covariance(v, K_array, Ofunc, covariance_func):
+    """
+    Compute the Fisher matrix per mode for a general observable O,
+    where Ofunc(K_array, v) returns (n_modes, nprobes, nprobes).
+    Assumes diagonal covariance matrix as described in the variance_func.
+    """
+
+    n_params = len(v)
+    n_modes = len(K_array)
+
+    #O = Ofunc(K_array, v)
+    C = covariance_func(K_array, v)
+
+    Cinv = safe_inv(C)
+
+    # Compute derivatives: dO_dv has shape (n_modes, nprobes, n_params)
+    dO_dv = jax.jacfwd(Ofunc, argnums=1)(K_array, v)  # (n_modes, n_probes, n_params)
+
+    # Fisher matrix per mode
+    F = jnp.zeros((n_modes, n_params, n_params))
+
+    #k is mode, i is probe, a is parameter, j is probe
+    F = jnp.einsum('kia, kij, kjb -> kab', dO_dv, Cinv, dO_dv)
+    return F
+
 def fisher_per_mode_single(v, K_array, Ofunc, variance_func):
     """
     Compute the Fisher matrix per mode for a general observable O,
@@ -307,4 +334,36 @@ def get_fisher_matrix(v, K_array, Cfunc, k_min_analysis = 0.01, k_max_analysis =
     """
     F = fisher_per_mode(v, K_array, Cfunc)
     F_integrated = get_F_integrated(K_array, F, k_min_analysis, k_max_analysis, V)
+    return F_integrated
+
+
+
+def get_F_integrated_fast_new(K_array, F, k_min_analysis=0.01, k_max_analysis=0.05, V=1):
+    """
+    Fast vectorized version of get_F_integrated.
+    Given a Fisher matrix per mode, integrates to give a function.
+    Optimized version that vectorizes the integration over all parameter pairs.
+    
+    Args:
+        K_array: Array of k values for interpolation
+        F: Fisher matrix per mode (n_modes, n_params, n_params)
+        k_min_analysis: Minimum k for integration
+        k_max_analysis: Maximum k for integration
+        V: Volume in Gpc^3 h^{-3}
+    
+    Returns:
+        F_integrated: Integrated Fisher matrix (n_params, n_params)
+    """
+    V *= 1e9  # Convert to Mpc^3 h^{-3}
+
+    mask = (K_array > k_min_analysis) & (K_array < k_max_analysis)
+    F_sel = F[mask]
+    K_sel = K_array[mask][:, None, None]
+
+    F_integrated = jnp.trapezoid(F_sel*K_sel**2, K_sel, axis=0)
+
+    # Apply prefactor (factor of 2 from mu integration)
+    prefactor = 2 * V / (2 * jnp.pi)**2
+    F_integrated = F_integrated * prefactor
+
     return F_integrated

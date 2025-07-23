@@ -5,7 +5,7 @@ sim_params:
   sim_name_base: "AbacusSummit_base_c000_ph"
   z_mock: 0.5
   cleaned_halos: True
-  sim_list: [0, 1, 2, 3, 4, 5]
+  sim_list: [1, 2, 3, 4, 5] #[0, 1, 2, 3, 4, 5]
   ngrid: 576
   nthread: 128
   box: 2000

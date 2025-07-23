@@ -1,0 +1,77 @@
+name: abacus_recs_kmax_10
+
+sim_params:
+  #sim_name: "AbacusSummit_base_c000_ph000"
+  sim_name_base: "AbacusSummit_base_c000_ph"
+  z_mock: 0.5
+  cleaned_halos: True
+  sim_list: [3]
+  ngrid: 576
+  nthread: 128
+  box: 2000
+  interlaced: True
+  compensated: True
+  paste: 'TSC'
+  samples: ['LRG', 'ELG']
+
+# Power spectrum file paths
+power_spectrum:
+  main_directory: "../results/"
+  nonlinear: "nonlinear_power_abacus.txt"
+  linear: "linear_power_abacus.txt"
+
+# k-range parameters
+k_range:
+  kmin: 0.051
+  kmax: 0.1
+  k_samples: 150
+  k_min_analysis: 0.001
+  k_max_analysis: 0.35
+  gauss_filter: False
+  gauss_filter_kmax: 0.1
+
+# Sampling parameters
+sampling:
+  Nsamples_base: 10000
+
+# Physics parameters
+physics:
+  deltac: 1.42
+  a1: 1.0
+  a2: -0.8095238095
+  Fg_factor: 17/21
+
+
+# Keypairs for analysis
+#specify quantity: "all", "N", "V", "T", "B", "Bcross"
+#N for normalization, V for variance, T for trispectrum, B for bispectrum, Bcross for cross-shot bispectrum
+keypairs:
+  - [["n", "n"], ["N", "V", "Bcross"]]
+  - [["s", "n"], ["N"]]
+  - [["g", "n"], ["N"]]
+  - [["t", "n"], ["N"]]
+  - [["g", "g"], ["N", "V"]]
+  - [["s", "s"], ["N", "V"]]
+  - [["t", "t"], ["N", "V"]]
+  - [["g", "s"], ["N"]]
+  - [["g", "t"], ["N"]]
+  - [["s", "t"], ["N"]]
+  #- [["n", "ga"], ["N"]]
+  #- [["n", "sa"], ["N"]]
+  #- [["n", "ta"], ["N"]]
+  #- [["sa", "sa"], ["all"]]
+  
+  
+
+
+# Estimator keys
+estimator_keys:
+  - "n"
+  - "g"
+  - "s"
+  - "t"
+
+# Output configuration
+output:
+  directory: "../results/"
+  filename_prefix: "analysis" 

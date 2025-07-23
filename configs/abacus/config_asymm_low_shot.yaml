@@ -1,0 +1,109 @@
+name: desi_base_asymm_low_shot
+
+sim_params:
+  #sim_name: "AbacusSummit_base_c000_ph000"
+  sim_name_base: "AbacusSummit_base_c000_ph"
+  z_mock: 0.5
+  cleaned_halos: True
+  sim_list: [0]
+  ngrid: 576
+  nthread: 128
+  box: 2000
+  interlaced: True
+  compensated: True
+  paste: 'TSC'
+  samples: ['LRG', 'ELG']
+
+# Power spectrum file paths
+power_spectrum:
+  main_directory: "../results/"
+  #main_directory: "../results/"
+  nonlinear: "nonlinear_power_abacus.txt"
+  linear: "linear_power_abacus.txt"
+
+# k-range parameters
+k_range:
+  kmin: 0.051
+  kmax: 0.15
+  k_samples: 150
+  k_min_analysis: 0.001
+  k_max_analysis: 0.35
+  gauss_filter: False
+  gauss_filter_kmax: 0.15
+
+# Sampling parameters
+sampling:
+  Nsamples_base: 5000 #10000
+
+# Physics parameters
+physics:
+  deltac: 1.42
+  a1: 1.0
+  a2: -0.8095238095
+  Fg_factor: 17/21
+
+# Bias parameters
+#higher order bias parameters can be calculated from semi-analytical expressions/theory.
+bias:
+  b10_A: 1.6
+  b10_B: 1.2
+
+# Number density parameters
+number_density:
+  nbar_A: 3.0e-3
+  nbar_B: 5.0e-3
+
+# Keypairs for analysis
+#specify quantity: "all", "Nfull", "Vfull", "T", "B", "Bcross"
+#N for normalization, V for variance, T for trispectrum, B for bispectrum, Bcross for cross-shot bispectrum
+keypairs:
+  - [["n", "n"], ["N", "V"]] #["all"]]
+  #- [["s", "n"], ["Nfull"]]
+  #- [["g", "n"], ["Nfull"]]
+  #- [["t", "n"], ["Nfull"]]
+  - [["g", "g"], ["N", "V"]]
+  - [["s", "s"], ["N", "V"]]
+  - [["t", "t"], ["N", "V"]]
+  - [["sa", "sa"], ["N", "V"]]
+  - [["ta", "ta"], ["N", "V"]]
+  - [["ga", "ga"], ["N", "V"]]
+  #- [["g", "s"], ["Nfull"]]
+  #- [["g", "t"], ["Nfull"]]
+  #- [["s", "t"], ["Nfull"]]
+  #- [["g", "g"], ["all"]]
+  #- [["s", "s"], ["Nfull", "Vfull"]] #["all"]]
+  #- [["t", "t"], ["all"]]
+  #- [["g", "s"], ["Nfull"]]
+  #- [["g", "t"], ["Nfull"]]
+  #- [["s", "t"], ["Nfull"]]
+  #- [["n", "ga"], ["Nfull"]]
+  #- [["n", "sa"], ["Nfull"]]
+  #- [["n", "ta"], ["Nfull"]]
+  #- [["sa", "sa"], ["all"]]
+  #- [["ga", "ga"], ["Nfull", "Vfull"]]
+  #- [["sa", "s"], ["Nfull"]]
+  #- [["sa", "g"], ["Nfull"]]
+  #- [["sa", "t"], ["Nfull"]]
+  #- [["sa", "ga"], ["Nfull"]]
+  #- [["sa", "ta"], ["Nfull"]]
+  #- [["ta", "ta"], ["Nfull", "Vfull"]]
+  #- [["g", "sa"], ["Nfull"]]
+  #- [["g", "ta"], ["Nfull"]]
+  #- [["g", "ga"], ["Nfull"]]
+  #- [["s", "ta"], ["Nfull"]]
+  #- [["t", "ta"], ["Nfull"]]
+  #- [["t", "sa"], ["Nfull"]]
+  #- [["t", "ga"], ["Nfull"]]
+
+  
+# Estimator keys
+estimator_keys:
+  - "n"
+  - "g"
+  - "s"
+  - "t"
+
+# Output configuration
+output:
+  directory: "../../results/"
+  filename_prefix: "analysis" 

@@ -5,14 +5,14 @@ sim_params:
   sim_name_base: "AbacusSummit_base_c000_ph"
   z_mock: 0.5
   cleaned_halos: True
-  sim_list: [0, 1]
+  sim_list: [3]
   ngrid: 576
   nthread: 128
   box: 2000
   interlaced: True
   compensated: True
   paste: 'TSC'
-  samples: ['LRG', 'LRG']
+  samples: ['LRG', 'ELG']
 
 # Power spectrum file paths
 power_spectrum:
@@ -52,14 +52,14 @@ keypairs:
   - [["t", "n"], ["N"]]
   - [["g", "g"], ["all"]]
   - [["s", "s"], ["all"]]
-  - [["t", "t"], ["all"]]
+  #- [["t", "t"], ["all"]]
   - [["g", "s"], ["N"]]
   - [["g", "t"], ["N"]]
   - [["s", "t"], ["N"]]
-  - [["n", "ga"], ["N"]]
-  - [["n", "sa"], ["N"]]
-  - [["n", "ta"], ["N"]]
-  - [["sa", "sa"], ["all"]]
+  #- [["n", "ga"], ["N"]]
+  #- [["n", "sa"], ["N"]]
+  #- [["n", "ta"], ["N"]]
+  #- [["sa", "sa"], ["all"]]
   
   
 

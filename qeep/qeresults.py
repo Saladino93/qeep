@@ -6,33 +6,35 @@ import pathlib
 
 
 class QEResults:
-    def __init__(self, config, sims = False, relative_path = "."):
+    def __init__(self, config, relative_path = ".", filename_prefix = "analysis_theory"):
 
         name_config = config['name']
         output_config = config['output']
         relative_path = pathlib.Path(relative_path)
         output_dir = relative_path / output_config['directory'] / name_config
+        self.output_dir = output_dir
 
-        if sims:
-            nome = "analysisAbacusSummit_base_c000_ph000_z0.500_LRG_ELG_normalization_AB.npy"
-            nomev = "analysisAbacusSummit_base_c000_ph000_z0.500_LRG_ELG_variance_AB.npy"
-            nometri = "analysisAbacusSummit_base_c000_ph000_z0.500_LRG_ELG_shot_trispectrum_AB.npy"
-            nomebis_mixed = "analysisAbacusSummit_base_c000_ph000_z0.500_LRG_ELG_cross_shot_AB.npy"
-            nomebis = "analysisAbacusSummit_base_c000_ph000_z0.500_LRG_ELG_shot_bispectrum_AB.npy"
-        else:
-            nome = f"analysis_theory_normalization_AB.npy"
-            nomev = f"analysis_theory_variance_AB.npy"
-            nomebis = f"analysis_theory_shot_bispectrum_AB.npy"
-            nomebis_mixed = f"analysis_theory_cross_shot_AB.npy"
-            nometri = f"analysis_theory_shot_trispectrum_AB.npy"
+
+        nome = f"{filename_prefix}_normalization_AB.npy"
+        nomev = f"{filename_prefix}_variance_AB.npy"
+        nomebis = f"{filename_prefix}_shot_bispectrum_AB.npy"
+        nomebis_mixed = f"{filename_prefix}_cross_shot_AB.npy"
+        nomebis_mixed_withB = f"{filename_prefix}_cross_shot_AB_withB.npy"
+        nometri = f"{filename_prefix}_shot_trispectrum_AB.npy"
+        nomeweight = f"{filename_prefix}_weight_integral_AB.npy"
 
         self.out_normalization_AB = np.load(output_dir / nome, allow_pickle = True).item() #inverse of normalization N
 
-        self.analysis_cross_shot_AB = np.load(output_dir / nomebis_mixed, allow_pickle = True).item() #cross shot-noise
+        self.analysis_cross_shot_AB = np.load(output_dir / nomebis_mixed, allow_pickle = True).item() #cross shot-noise, A_AB, where A is external, AB is QE
+        self.analysis_cross_shot_AB_withB = np.load(output_dir / nomebis_mixed_withB, allow_pickle = True).item() #cross shot-noise with B, B_AB, where B is external, AB is QE
         self.out_variance_AB = np.load(output_dir / nomev, allow_pickle = True).item() #variance
         self.out_shot_trispectrum = np.load(output_dir / nometri, allow_pickle = True).item() #trispectrum shot noise, assuming all the same
         self.out_shot_bispectrum = np.load(output_dir / nomebis, allow_pickle = True).item() #bispectrum shot noise, assuming all the same
 
+        try:
+            self.out_weight_integral = np.load(output_dir / nomeweight, allow_pickle = True).item()
+        except:
+            self.out_weight_integral = None
 
         ps_main_directory = relative_path / config['power_spectrum']['main_directory']
         self.gen_nl_power = np.loadtxt(ps_main_directory/name_config/config['power_spectrum']['nonlinear'])
@@ -68,24 +70,29 @@ class QEResults:
         return result
 
     def get_get_norm(self):
-        def get_norm(key):
-            N = np.array(self.out_normalization_AB[(key, key)]**-1.)
+        def get_norm(key, key2 = None):
+            key2 = key if key2 is None else key2
+            N = np.array(self.out_normalization_AB[(key, key2)]**-1.)
             N[np.abs(N)>1e10] = 0
             N = jnp.array(N)
             return N
         return get_norm
     
     def get_get_variance(self):
-        def get_variance(key):
+        def get_variance(key, key2 = None):
+            key2 = key if key2 is None else key2
             N = self.get_get_norm()(key)
-            V = self.out_variance_AB[(key, key)]*N**2
+            N2 = N if key2 is None else self.get_get_norm()(key2)
+            V = self.out_variance_AB[(key, key2)]*N*N2
             return V
         return get_variance
     
     def get_get_trispectrum(self):
-        def get_trispectrum(key):
+        def get_trispectrum(key, key2 = None):
+            key2 = key if key2 is None else key2
             N = self.get_get_norm()(key)
-            T = self.out_shot_trispectrum[(key, key)]*N**2
+            N2 = N if key2 is None else self.get_get_norm()(key2)
+            T = self.out_shot_trispectrum[(key, key2)]*N*N2
             return T
         return get_trispectrum
 
@@ -95,6 +102,13 @@ class QEResults:
             B = self.analysis_cross_shot_AB[(key, key)]*N
             return B
         return get_bispectrum_mixed
+    
+    def get_get_bispectrum_mixed_withB(self):
+        def get_bispectrum_mixed_withB(key):
+            N = self.get_get_norm()(key)
+            B = self.analysis_cross_shot_AB_withB[(key, key)]*N
+            return B
+        return get_bispectrum_mixed_withB
 
     def get_get_bispectrum(self):
         def get_bispectrum(key):

@@ -72,13 +72,25 @@ COLORBLIND_PALETTE_2 = [
 ]
 
 # More descriptive and professionally formatted names
+""""
 names = {
     "n": r"$\mathcal{D}$", 
-    "s": r"$\mathrm{\mathcal{S}}_{\mathrm{symm}}$",
-    "t": r"$\mathrm{\mathcal{T}}_{\mathrm{symm}}$",
-    "g": r"$\mathrm{\mathcal{G}}_{\mathrm{symm}}$",
-    "ga": r"$\mathrm{\mathcal{G}}_{\mathrm{asymm}}$",
-    "sa": r"$\mathrm{\mathcal{S}}_{\mathrm{asymm}}$",
-    "ta": r"$\mathrm{\mathcal{T}}_{\mathrm{asymm}}$",
+    "s": r"$\mathrm{\mathcal{S}}_{+}$",
+    "t": r"$\mathrm{\mathcal{T}}_{+}$",
+    "g": r"$\mathrm{\mathcal{G}}_{+}$",
+    "ga": r"$\mathrm{\mathcal{G}}_{-}$",
+    "sa": r"$\mathrm{\mathcal{S}}_{-}$",
+    "ta": r"$\mathrm{\mathcal{T}}_{-}$",
+}
+"""
+
+names = {
+    "n": r"$\mathcal{D}$", 
+    "s": r"$\mathrm{S}_{+}$",
+    "t": r"$\mathrm{T}_{+}$",
+    "g": r"$\mathrm{G}_{+}$",
+    "ga": r"$\mathrm{G}_{-}$",
+    "sa": r"$\mathrm{S}_{-}$",
+    "ta": r"$\mathrm{T}_{-}$",
 }
 

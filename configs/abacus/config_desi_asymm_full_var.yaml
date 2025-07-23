@@ -16,7 +16,8 @@ sim_params:
 
 # Power spectrum file paths
 power_spectrum:
-  main_directory: "../../results/"
+  main_directory: "../results/"
+  #main_directory: "../results/"
   nonlinear: "nonlinear_power_abacus.txt"
   linear: "linear_power_abacus.txt"
 
@@ -57,42 +58,42 @@ number_density:
 #N for normalization, V for variance, T for trispectrum, B for bispectrum, Bcross for cross-shot bispectrum
 keypairs:
   - [["n", "n"], ["Nfull", "Vfull"]] #["all"]]
-  - [["s", "n"], ["Nfull"]]
-  - [["g", "n"], ["Nfull"]]
-  - [["t", "n"], ["Nfull"]]
+  #- [["s", "n"], ["Nfull"]]
+  #- [["g", "n"], ["Nfull"]]
+  #- [["t", "n"], ["Nfull"]]
   - [["g", "g"], ["Nfull", "Vfull"]]
   - [["s", "s"], ["Nfull", "Vfull"]]
   - [["t", "t"], ["Nfull", "Vfull"]]
-  - [["g", "s"], ["Nfull"]]
-  - [["g", "t"], ["Nfull"]]
-  - [["s", "t"], ["Nfull"]]
+  - [["sa", "sa"], ["Nfull", "Vfull"]]
+  - [["ta", "ta"], ["Nfull", "Vfull"]]
+  - [["ga", "ga"], ["Nfull", "Vfull"]]
+  #- [["g", "s"], ["Nfull"]]
+  #- [["g", "t"], ["Nfull"]]
+  #- [["s", "t"], ["Nfull"]]
   #- [["g", "g"], ["all"]]
   #- [["s", "s"], ["Nfull", "Vfull"]] #["all"]]
   #- [["t", "t"], ["all"]]
   #- [["g", "s"], ["Nfull"]]
   #- [["g", "t"], ["Nfull"]]
   #- [["s", "t"], ["Nfull"]]
-  - [["n", "ga"], ["Nfull"]]
-  - [["n", "sa"], ["Nfull"]]
-  - [["n", "ta"], ["Nfull"]]
+  #- [["n", "ga"], ["Nfull"]]
+  #- [["n", "sa"], ["Nfull"]]
+  #- [["n", "ta"], ["Nfull"]]
   #- [["sa", "sa"], ["all"]]
   #- [["ga", "ga"], ["Nfull", "Vfull"]]
-  - [["sa", "sa"], ["Nfull", "Vfull"]]
-  - [["sa", "s"], ["Nfull"]]
-  - [["sa", "g"], ["Nfull"]]
-  - [["sa", "t"], ["Nfull"]]
-  - [["sa", "ga"], ["Nfull"]]
-  - [["sa", "ta"], ["Nfull"]]
+  #- [["sa", "s"], ["Nfull"]]
+  #- [["sa", "g"], ["Nfull"]]
+  #- [["sa", "t"], ["Nfull"]]
+  #- [["sa", "ga"], ["Nfull"]]
+  #- [["sa", "ta"], ["Nfull"]]
   #- [["ta", "ta"], ["Nfull", "Vfull"]]
-  - [["g", "sa"], ["Nfull"]]
-  - [["g", "ta"], ["Nfull"]]
-  - [["g", "ga"], ["Nfull"]]
-  - [["s", "ta"], ["Nfull"]]
-  - [["t", "ta"], ["Nfull"]]
-  - [["t", "sa"], ["Nfull"]]
-  - [["t", "ga"], ["Nfull"]]
-  - [["ta", "ta"], ["Nfull", "Vfull"]]
-  - [["ga", "ga"], ["Nfull", "Vfull"]]
+  #- [["g", "sa"], ["Nfull"]]
+  #- [["g", "ta"], ["Nfull"]]
+  #- [["g", "ga"], ["Nfull"]]
+  #- [["s", "ta"], ["Nfull"]]
+  #- [["t", "ta"], ["Nfull"]]
+  #- [["t", "sa"], ["Nfull"]]
+  #- [["t", "ga"], ["Nfull"]]
 
   
 # Estimator keys

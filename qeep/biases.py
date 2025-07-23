@@ -44,6 +44,17 @@ def cg_t(biases_A, biases_B, e):
     return (biases_A[0]+7/2*biases_A[1]+e*biases_A[2])*biases_B[0]
 
 
+def get_cg_bias(key,biases_A, biases_B, e):
+    if key == "g":
+        return cg_g(biases_A, biases_B, e)
+    elif key == "s":
+        return cg_s(biases_A, biases_B, e)
+    elif key == "t":
+        return cg_t(biases_A, biases_B, e)
+    else:
+        raise ValueError(f"Invalid key: {key}")
+
+
 
 def get_Cg_biases(e, b1A, b1B, b2A, b2B, bs2A, bs2B, bGXA, bGXB, bSXA, bSXB, bTXA, bTXB, asymm_shift = 1., only_asymm_shift = 0.):
     """

@@ -46,6 +46,8 @@ physics:
 bias:
   b10_A: 1.6
   b10_B: 1.6
+  b2_A: -0.3
+  b2_B: -0.3
 
 # Number density parameters
 number_density:
@@ -56,7 +58,13 @@ number_density:
 #specify quantity: "all", "N", "V", "T", "B", "Bcross"
 #N for normalization, V for variance, T for trispectrum, B for bispectrum, Bcross for cross-shot bispectrum
 keypairs:
-  #- [["n", "n"], ["N", "V"]] #["all"]]
+  - [["n", "n"], ["N", "V"]]
+  - [["g", "g"], ["N", "V"]]
+  - [["s", "s"], ["N", "V"]]
+  - [["t", "t"], ["N", "V"]]
+  - [["sa", "sa"], ["N", "V"]]
+  - [["ga", "ga"], ["N", "V"]]
+  - [["ta", "ta"], ["N", "V"]]
   #- [["s", "n"], ["N"]]
   #- [["g", "n"], ["N"]]
   #- [["t", "n"], ["N"]]
@@ -73,12 +81,11 @@ keypairs:
   #- [["ga", "ga"], ["N", "V"]]
   #- [["sa", "sa"], ["N", "V"]]
   #- [["ta", "ta"], ["N", "V"]]
-  - [["g", "sa"], ["N"]]
-  - [["g", "ta"], ["N"]]
-  - [["g", "ga"], ["N"]]
-  - [["g", "s"], ["N"]]
-  - [["g", "t"], ["N"]]
-  - [["g", "g"], ["N", "V"]]
+  #- [["g", "sa"], ["N"]]
+  #- [["g", "ta"], ["N"]]
+  #- [["g", "ga"], ["N"]]
+  #- [["g", "s"], ["N"]]
+  #- [["g", "t"], ["N"]]
   #- [["sa", "sa"], ["N", "V"]]
   #- [["s", "ta"], ["N"]]
 

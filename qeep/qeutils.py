@@ -8,6 +8,7 @@ Check torchquad documentation, https://torchquad.readthedocs.io/en/latest/tutori
 import numpy as np
 import jax
 import jax.numpy as jnp
+from interpax import interp1d
 from torchquad import MonteCarlo, Boole
 from torchquad import set_up_backend  # Necessary to enable GPU support
 set_up_backend("jax", data_type="float64")
@@ -75,14 +76,19 @@ def integrate(Ks, function, batch_size = 5):
   return results
 
 
-def integrate_vegas(Ks, function):
+def integrate_vegas(Ks, function, batch_size = 3, kmin = 0.015, kmax = 0.15):
   """
   Integrate function for each mode K in Ks.
   """
-  #batch_size = 5 # if Ks.size > 20 else 10
+  #return jnp.array([function(K) for K in Ks])
   results = []
-  for K in Ks:
-      results.append(function(K))
+  for K in Ks:    
+    integrand_ = function(K)
+    integ = vegas.Integrator([[0, 2*jnp.pi], [-1, 1], [kmin, kmax], [0, 2*jnp.pi], [-1, 1], [kmin, kmax]], gpu_pad = True)
+    integ(integrand_, nitn=20, neval=1e3)
+    result = integ(integrand_, nitn=20, neval=1e5, adapt=True)
+    print(result.mean, result.sdev)
+    results.append(result.mean)
   results = jnp.array(results)
   return results
 
@@ -152,6 +158,7 @@ def get_k1_k2_mask(K, k, phi, mu, kmin, kmax, gauss_filter = False, K_sign = 1):
     mask_2 = gauss_filter(K_minus_k)**2
     mask *= mask_2
 
+  #could reuse magnitude of k1 and k2
   return k1, k2, mask
 
 
@@ -251,19 +258,46 @@ def N_per_mode_weighted(w_A: callable, f_jax_B: callable,
     @jax.jit
     def single_calculation(K):
         def integrand(x):
-            # Calculate N(K) = \int_{\vec{k}} [(P(k)+P(K-k))]^2/(PAA(k)*PBB(K-k))
             mu, k = x[:, 0], x[:, 1]
 
             phi_vol = 2*jnp.pi
             volume = phi_vol*k**2/(2*jnp.pi)**3
 
             k1, k2, mask = get_k1_k2_mask(K, k, mu*0, mu, kmin, kmax, gauss_filter)
-            
-            #k1_mag, k2_mag = jnp.linalg.norm(k1, axis=-1), jnp.linalg.norm(k2, axis=-1)
-
+  
             wresultA = w_A(k1, k2)
             fresultB = f_jax_B(k1, k2)
             return wresultA*fresultB*volume*mask
+
+        N = Nsamples_base**Ndim+1
+
+        mc = MonteCarlo()
+        result = mc.integrate(integrand, dim = Ndim, N = N,
+                              integration_domain = [[-1, 1], [kmin, kmax]],
+                              backend = "jax")
+        return result
+
+    return single_calculation
+
+
+def weight_integral(w_A: callable,
+               kmin: float = 0.015, kmax: float = 0.15, Ndim = 2, Nsamples_base = 10000, gauss_filter = False):
+    """
+    Returns calculation of noise normalization per mode
+    """
+
+    @jax.jit
+    def single_calculation(K):
+        def integrand(x):
+            mu, k = x[:, 0], x[:, 1]
+
+            phi_vol = 2*jnp.pi
+            volume = phi_vol*k**2/(2*jnp.pi)**3
+
+            k1, k2, mask = get_k1_k2_mask(K, k, mu*0, mu, kmin, kmax, gauss_filter)
+  
+            wresultA = w_A(k1, k2)
+            return wresultA*volume*mask
 
         N = Nsamples_base**Ndim+1
 
@@ -298,7 +332,6 @@ def get_w(f, P_AA, P_BB):
           P_AA_value = P_AA(k1_mag)
           P_BB_value = P_BB(k2_mag)
 
-          
           denominator = 2.0 * P_AA_value * P_BB_value
           
           # w_α(k1,k2) = f_α(k1,k2) / (2*PAA_tot(k1)*PBB_tot(k2))
@@ -308,7 +341,7 @@ def get_w(f, P_AA, P_BB):
       return w
 
 
-def get_full_w(f, P_AA, P_BB, P_AB):
+def get_full_w(f, P_AA, P_BB, P_AB, equal_tracers = False):
       """
       Unnormalized Weight function w that depends on f and the total power spectra of tracers.
 
@@ -337,9 +370,12 @@ def get_full_w(f, P_AA, P_BB, P_AB):
           P_AB_value_k2 = P_AB(k2_mag)
 
           
-          denominator = 2.0 * (P_AA_value_k1 * P_BB_value_k1 * P_AA_value_k2 * P_BB_value_k2 - P_AB_value_k1**2 * P_AB_value_k2**2)
+          denominator = (P_AA_value_k1 * P_BB_value_k1 * P_AA_value_k2 * P_BB_value_k2 - P_AB_value_k1**2 * P_AB_value_k2**2) #2.0, I remove factor of 2 to be consistent with my usual norm.
+          numerator = f_value_k1_k2 * P_AA_value_k2 * P_BB_value_k1 - f_value_k2_k1 * P_AB_value_k1 * P_AB_value_k2
 
-          numerator = f_value_k1_k2 * P_AA_value_k2 * P_BB_value_k2 - f_value_k2_k1 * P_AB_value_k1 * P_AB_value_k2
+          #denominator = (P_AA_value_k1 * P_BB_value_k2 + P_AB_value_k1 * P_AB_value_k2) #2.0, I remove factor of 2 to be consistent with my usual norm.
+          #numerator = f_value_k1_k2
+
           result = numerator / denominator
           return result
 
@@ -371,7 +407,7 @@ def variance_per_mode(weight_AB_alpha: callable, weight_XY_beta: callable,
             w_result_XY_2 = weight_XY_beta(k2, k1)
             P_AX_value = P_AX(k1_mag)
             P_BY_value = P_BY(k2_mag)
-            P_AY_value = P_BY(k1_mag)
+            P_AY_value = P_AY(k1_mag)
             P_BX_value = P_BX(k2_mag)
 
             result = w_result_XY_1*P_AX_value*P_BY_value+w_result_XY_2*P_AY_value*P_BX_value
@@ -418,7 +454,7 @@ def variance_per_mode_fast(weight_AB_alpha: callable, weight_XY_beta: callable,
   
             P_AX_value = P_AX(k1_mag)
             P_BY_value = P_BY(k2_mag)
-            P_AY_value = P_BY(k1_mag)
+            P_AY_value = P_AY(k1_mag)
             P_BX_value = P_BX(k2_mag)
 
             result = w_result_XY_1*P_AX_value*P_BY_value+w_result_XY_2*P_AY_value*P_BX_value
@@ -457,7 +493,7 @@ def variance_per_mode_integrand(K: float, weight_AB_alpha: callable, weight_XY_b
 
         volume = k**2/(2*jnp.pi)**3
 
-        k1, k2, mask = get_k1_k2_mask(K, k, phi, mu, kmin, kmax)
+        k1, k2, mask = get_k1_k2_mask(K, k, phi, mu, kmin, kmax) #k1, K-k1
         k1_mag, k2_mag = jnp.linalg.norm(k1, axis=-1), jnp.linalg.norm(k2, axis=-1)
 
         w_result_AB = weight_AB_alpha(k1, k2)
@@ -498,7 +534,7 @@ for K in Ks:
 
 
 def cross_shot_mixed_AAB(weight_AB_alpha: callable, nbar_A: float, P_AB: callable,
-               kmin: float = 0.015, kmax: float = 0.15, Ndim = 2, Nsamples_base = 10000):
+               kmin: float = 0.015, kmax: float = 0.15, Ndim = 2, Nsamples_base = 10000, activate_k2 = True):
     """
     Returns calculation of mixed shot noise
     """
@@ -513,10 +549,12 @@ def cross_shot_mixed_AAB(weight_AB_alpha: callable, nbar_A: float, P_AB: callabl
 
             k1, k2, mask = get_k1_k2_mask(K, k, mu*0, mu, kmin, kmax)
             k2_mag = jnp.linalg.norm(k2, axis=-1)
+            k1_mag = k
+            #K_mag = K*jnp.ones_like(k)
 
             w_result_AB = weight_AB_alpha(k1, k2)
             shotA = 1/nbar_A
-            PS = P_AB(k2_mag)*shotA
+            PS = P_AB(k2_mag)*shotA if activate_k2 else P_AB(k1_mag)*shotA
 
             return w_result_AB*PS*volume*mask
 
@@ -645,11 +683,13 @@ def variance_per_mode_integrand(K: float, weight_AB_alpha: callable, weight_XY_b
     return integrand
 
 
-def get_bispectrum_XYZ(P_signal_X, P_signal_Y, P_signal_Z, Fkernels, Fbiases):
+def get_bispectrum_XYZ(P_signal_X, P_signal_Y, P_signal_Z, Fkernels, Fbiases_X, Fbiases_Y, Fbiases_Z):
   # Pre-convert Fbiases to JAX array outside the jitted function
-  Fbiases_array = jnp.array(Fbiases)
+  Fbiases_array_X = jnp.array(Fbiases_X)
+  Fbiases_array_Y = jnp.array(Fbiases_Y)
+  Fbiases_array_Z = jnp.array(Fbiases_Z)
   
-  @jax.jit
+  #@jax.jit
   def bispectrum_XYZ(k1, k2, k3, k1_mag, k2_mag, k3_mag):
       P_X_1 = P_signal_X(k1_mag)
       P_Y_2 = P_signal_Y(k2_mag)
@@ -660,22 +700,22 @@ def get_bispectrum_XYZ(P_signal_X, P_signal_Y, P_signal_Z, Fkernels, Fbiases):
       #XZ = 2*P_X_1*P_Z_3*jnp.sum([F(k3, k1, k3_mag, k1_mag)*c for F, c in zip(Fkernels, Fbiases)], axis = 0)
       
       # XY term: k1, k2
-      XY_sum = (Fkernels[0](k1, k2, k1_mag, k2_mag) * Fbiases_array[0] +
-                Fkernels[1](k1, k2, k1_mag, k2_mag) * Fbiases_array[1] +
-                Fkernels[2](k1, k2, k1_mag, k2_mag) * Fbiases_array[2])
-      XY = 2*P_X_1*P_Y_2*XY_sum
+      XY_sum_Z = (Fkernels[0](k1, k2, k1_mag, k2_mag) * Fbiases_array_Z[0] +
+                Fkernels[1](k1, k2, k1_mag, k2_mag) * Fbiases_array_Z[1] +
+                Fkernels[2](k1, k2, k1_mag, k2_mag) * Fbiases_array_Z[2])
+      XY = 2*P_X_1*P_Y_2*XY_sum_Z
       
       # YZ term: k2, k3  
-      YZ_sum = (Fkernels[0](k2, k3, k2_mag, k3_mag) * Fbiases_array[0] +
-                Fkernels[1](k2, k3, k2_mag, k3_mag) * Fbiases_array[1] +
-                Fkernels[2](k2, k3, k2_mag, k3_mag) * Fbiases_array[2])
-      YZ = 2*P_Y_2*P_Z_3*YZ_sum
+      YZ_sum_X = (Fkernels[0](k2, k3, k2_mag, k3_mag) * Fbiases_array_X[0] +
+                Fkernels[1](k2, k3, k2_mag, k3_mag) * Fbiases_array_X[1] +
+                Fkernels[2](k2, k3, k2_mag, k3_mag) * Fbiases_array_X[2])
+      YZ = 2*P_Y_2*P_Z_3*YZ_sum_X
       
       # XZ term: k3, k1
-      XZ_sum = (Fkernels[0](k3, k1, k3_mag, k1_mag) * Fbiases_array[0] +
-                Fkernels[1](k3, k1, k3_mag, k1_mag) * Fbiases_array[1] +
-                Fkernels[2](k3, k1, k3_mag, k1_mag) * Fbiases_array[2])
-      XZ = 2*P_X_1*P_Z_3*XZ_sum
+      XZ_sum_Y = (Fkernels[0](k3, k1, k3_mag, k1_mag) * Fbiases_array_Y[0] +
+                Fkernels[1](k3, k1, k3_mag, k1_mag) * Fbiases_array_Y[1] +
+                Fkernels[2](k3, k1, k3_mag, k1_mag) * Fbiases_array_Y[2])
+      XZ = 2*P_X_1*P_Z_3*XZ_sum_Y
 
       somma = XY+YZ+XZ
       return somma
@@ -691,9 +731,7 @@ def shot_trispectrum(weight_AB_alpha: callable, weight_XY_beta: callable,
 
     def single_calculation(K):
         @jax.jit
-        def integrand_(x):
-            phi, mu, k = x[:, 0], x[:, 1], x[:, 2]
-            phi_p, mu_p, k_p = x[:, 3], x[:, 4], x[:, 5]
+        def funzione(k, k_p, phi, mu, phi_p, mu_p):
 
             volume = k**2/(2*jnp.pi)**3
             volume_p = k_p**2/(2*jnp.pi)**3
@@ -702,7 +740,8 @@ def shot_trispectrum(weight_AB_alpha: callable, weight_XY_beta: callable,
             Kvec = k1+k2
             
             k1_mag, k2_mag = jnp.linalg.norm(k1, axis=-1), jnp.linalg.norm(k2, axis=-1)
-            K_mag = jnp.ones_like(k1_mag)*K
+            ones = jnp.ones_like(k1_mag)
+            K_mag = ones*K
 
             #get_k1_k2_mask gives you q, and K-q, vectorial form
             #if you want to get -K-q, you need to flip the sign of the direction, so K_sign = -1
@@ -725,17 +764,14 @@ def shot_trispectrum(weight_AB_alpha: callable, weight_XY_beta: callable,
             minus_k1_minus_k1_p_mag = jnp.linalg.norm(minus_k1_minus_k1_p, axis = -1)
 
             mask_all = 1.
-            mask_all = maskf(k1_plus_k1_p_mag, kmin, kmax)
-            mask_all *= maskf(k1_plus_k2_p_mag, kmin, kmax)
-            mask_all *= maskf(minus_k1_minus_k1_p_mag, kmin, kmax)
+            #mask_all *= maskf(k1_plus_k1_p_mag, kmin, kmax)
+            #mask_all *= maskf(k1_plus_k2_p_mag, kmin, kmax)
+            #mask_all *= maskf(minus_k1_minus_k1_p_mag, kmin, kmax)
             
-
             pgcont_1 = P_cont(k1_mag)
             pgcont_2 = P_cont(k2_mag)
             pgcont_p_1 = P_cont(k1_p_mag)
             pgcont_p_2 = P_cont(k2_p_mag)
-
-
 
             somma = 0.
 
@@ -745,7 +781,7 @@ def shot_trispectrum(weight_AB_alpha: callable, weight_XY_beta: callable,
             temp *= shot2
             somma += temp
             
-            pgcont_long = P_cont(K_mag)
+            pgcont_long = P_cont(K)*ones
             pgcont_q_minus_K_minus_qp = P_cont(k1_plus_k2_p_mag)
             pgcont_q_plus_qp = P_cont(k1_plus_k1_p_mag)
 
@@ -762,31 +798,121 @@ def shot_trispectrum(weight_AB_alpha: callable, weight_XY_beta: callable,
             somma *= w_result_AB*w_result_XY_p
 
             return somma*volume*volume_p*mask*mask_p*mask_all
+        
 
+        @jax.jit
+        def integrand_(x):
+            phi, mu, k = x[:, 0], x[:, 1], x[:, 2]
+            phi_p, mu_p, k_p = x[:, 3], x[:, 4], x[:, 5]
 
-        @vegas.lbatchintegrand
-        def integrand(x):
-            return integrand_(jnp.array(x))
+            somma_1 = funzione(k, k_p, phi, mu, phi_p, mu_p)
+            #somma_2 = funzione(k_p, k, phi, -mu, phi_p, mu_p)
+            #media = (somma_1+somma_2)/2
+            media = somma_1
+            return media
+
 
         if torchquad:
           N = Nsamples_base**Ndim+1
 
-
           integration_domain = [[0, 2*jnp.pi], [-1, 1], [kmin, kmax], [0, 2*jnp.pi], [-1, 1], [kmin, kmax]]
 
           mc = MonteCarlo()
-          result = mc.integrate(integrand, dim = Ndim, N = N,
+          result = mc.integrate(integrand_, dim = Ndim, N = N,
                                 integration_domain = integration_domain,
                                 backend = "jax")
         else:
-           integ = vegas.Integrator([[0, 2*jnp.pi], [-1, 1], [kmin, kmax], [0, 2*jnp.pi], [-1, 1], [kmin, kmax]], gpu_pad = True)
-           integ(integrand, nitn=1e2, neval=1e3)
-           result = integ(integrand, nitn=50, neval=1e2, adapt=False).mean
+           
+          @vegas.lbatchintegrand
+          def integrand(x):
+             return integrand_(jnp.array(x))
+          
+          #integ = vegas.Integrator([[0, 2*jnp.pi], [-1, 1], [kmin, kmax], [0, 2*jnp.pi], [-1, 1], [kmin, kmax]], gpu_pad = True)
+          #integ(integrand, nitn=20, neval=1e3)
+          #result = integ(integrand, nitn=30, neval=1e5, adapt=True).mean
+          result = integrand
 
         return result
 
     return single_calculation
 
+
+
+
+def shot_trispectrum_mixed(K: float, weight_AB_alpha: callable, P_AB: callable, bispectrum_ABB: callable, bispectrum_BAA: callable, 
+                           nbar_A: float, nbar_B: float, kmin: float = 0.051, kmax: float = 0.15,
+                           Nsamples_base = 1000, Ndim = 6):
+    """
+    Trispectrum shot-noise. For mixed QE auto-spectrum AB-AB
+    """
+
+    def single_calculation(K):
+        @jax.jit
+        def funzione(k, k_p, phi, mu, phi_p, mu_p):
+
+            volume = k**2/(2*jnp.pi)**3
+            volume_p = k_p**2/(2*jnp.pi)**3
+
+            k1, k2, mask = get_k1_k2_mask(K, k, phi, mu, kmin, kmax)
+            Kvec = k1+k2
+            
+            k1_mag, k2_mag = jnp.linalg.norm(k1, axis=-1), jnp.linalg.norm(k2, axis=-1)
+            ones = jnp.ones_like(k1_mag)
+            K_mag = ones*K
+
+            #get_k1_k2_mask gives you q, and K-q, vectorial form
+            #if you want to get -K-q, you need to flip the sign of the direction, so K_sign = -1
+            #k3, k4, mask_p = get_k1_k2_mask(K, k_p, phi_p, mu_p, kmin, kmax, K_sign = -1)
+            #k3_mag, k4_mag = jnp.linalg.norm(k3, axis=-1), jnp.linalg.norm(k4, axis=-1)
+
+            k3 = spherical_to_cartesian(phi_p, mu_p, k_p)
+            k4 = -(k1+k2+k3)
+            k3_mag = jnp.linalg.norm(k3, axis = -1)
+            k4_mag = jnp.linalg.norm(k4, axis = -1)
+            mask_p = maskf(k4_mag, kmin, kmax)*maskf(k3_mag, kmin, kmax)
+
+            k1_plus_k3 = k1+k3
+            k1_plus_k3_mag = jnp.linalg.norm(k1_plus_k3, axis = -1)
+            k2_plus_k4 = k2+k4
+            k2_plus_k4_mag = jnp.linalg.norm(k2_plus_k4, axis = -1)
+
+            power_AB_value = P_AB(k1_plus_k3_mag) #cross-correlation between A and B
+            power_AB_value *= 1/nbar_A*1/nbar_B
+            
+            somma = 0.
+            somma += power_AB_value
+
+            bispectrum_ABB_value = bispectrum_ABB(k1_plus_k3, k2, k4, k1_plus_k3_mag, k2_mag, k4_mag)
+            bispectrum_BAA_value = bispectrum_BAA(k2_plus_k4, k1, k3, k2_plus_k4_mag, k1_mag, k3_mag)
+
+            somma += (bispectrum_ABB_value*1/nbar_A)
+            somma += (bispectrum_BAA_value*1/nbar_B)
+
+            w_result_AB_12 = weight_AB_alpha(k1, k2)
+            w_result_AB_34 = weight_AB_alpha(k3, k4)
+
+            somma *= w_result_AB_12*w_result_AB_34
+
+            somma *= volume*volume_p*mask*mask_p
+            return somma
+
+        @jax.jit
+        def integrand_(x):
+            phi, mu, k = x[:, 0], x[:, 1], x[:, 2]
+            phi_p, mu_p, k_p = x[:, 3], x[:, 4], x[:, 5]
+            return funzione(k, k_p, phi, mu, phi_p, mu_p)
+        
+        N = Nsamples_base**Ndim+1
+
+        integration_domain = [[0, 2*jnp.pi], [-1, 1], [kmin, kmax], [0, 2*jnp.pi], [-1, 1], [kmin, kmax]]
+
+        mc = MonteCarlo()
+        result = mc.integrate(integrand_, dim = Ndim, N = N,
+                              integration_domain = integration_domain,
+                              backend = "jax")
+        return result
+            
+    return single_calculation
 
 
 
@@ -797,26 +923,54 @@ def shot_trispectrum_general(K: float, weight_AB_alpha: callable, weight_XY_beta
     Trispectrum shot-noise. ASSUMES A=B, SO THAT YOU CAN GET A MORE PESSIMISTIC VIEW. THIS AVOIDS CALCULATING TOO MANY TERMS IN GENERAL CASE.
     """
 
-    @jax.jit
-    def integrand(x):
-        phi, mu, k = x[:, 0], x[:, 1], x[:, 2]
+    def single_calculation(K):
+        @jax.jit
+        def funzione(k, k_p, phi, mu, phi_p, mu_p):
 
-        volume = k**2/(2*jnp.pi)**3
+            volume = k**2/(2*jnp.pi)**3
+            volume_p = k_p**2/(2*jnp.pi)**3
 
-        k1, k2, mask = get_k1_k2_mask(K, k, phi, mu, kmin, kmax)
-        k1_mag, k2_mag = jnp.linalg.norm(k1, axis=-1), jnp.linalg.norm(k2, axis=-1)
+            k1, k2, mask = get_k1_k2_mask(K, k, phi, mu, kmin, kmax)
+            Kvec = k1+k2
+            
+            k1_mag, k2_mag = jnp.linalg.norm(k1, axis=-1), jnp.linalg.norm(k2, axis=-1)
+            ones = jnp.ones_like(k1_mag)
+            K_mag = ones*K
 
-        w_result_AB = weight_AB_alpha(k1, k2)
-        w_result_XY_1 = weight_XY_beta(k1, k2)
-        w_result_XY_2 = weight_XY_beta(k2, k1)
-        P_AX_value = P_AX(k1_mag)
-        P_BY_value = P_BY(k2_mag)
-        P_AY_value = P_BY(k1_mag)
-        P_BX_value = P_BX(k2_mag)
+            #get_k1_k2_mask gives you q, and K-q, vectorial form
+            #if you want to get -K-q, you need to flip the sign of the direction, so K_sign = -1
+            k3, k4, mask_p = get_k1_k2_mask(K, k_p, phi_p, mu_p, kmin, kmax, K_sign = -1)
+            k3_mag, k4_mag = jnp.linalg.norm(k3, axis=-1), jnp.linalg.norm(k4, axis=-1)
 
-        result = w_result_XY_1*P_AX_value*P_BY_value+w_result_XY_2*P_AY_value*P_BX_value
-        result *= w_result_AB
+            w_result_AB_12 = weight_AB_alpha(k1, k2)
+            w_result_XY_34 = weight_XY_beta(k3, k4)
+            
+            shot = 1/nbar_A
+            shot3 = shot**3
+            shot2 = shot**2
 
-        return result*volume*mask
+            k1_plus_k2_mag = K_mag
+            k1_plus_k3_mag = jnp.linalg.norm(k1+k3, axis = -1)
+            k2_plus_k3_mag = jnp.linalg.norm(k2+k3, axis = -1) #this is same as (-k1_plus_k4)_mag
 
-    return integrand
+            power_spectra_sum = P_AX(k1_mag)+P_AX(k2_mag)+P_AX(k3_mag)+P_AX(k4_mag)+P_AX(k1_plus_k2_mag)+P_AX(k1_plus_k3_mag)+P_AX(k2_plus_k3_mag)
+
+            somma = shot3
+            somma += power_spectra_sum*shot2
+            
+            return somma*volume*volume_p*mask*mask_p
+        
+
+        @jax.jit
+        def integrand_(x):
+            phi, mu, k = x[:, 0], x[:, 1], x[:, 2]
+            phi_p, mu_p, k_p = x[:, 3], x[:, 4], x[:, 5]
+
+            somma_1 = funzione(k, k_p, phi, mu, phi_p, mu_p)
+            somma_2 = funzione(k_p, k, phi, -mu, phi_p, mu_p)
+            
+            media = (somma_1+somma_2)/2
+            #media = somma
+            return media
+
+    return single_calculation

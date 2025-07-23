@@ -109,13 +109,15 @@ def get_tidal_rec(real_field, box = 2000, kmin = 0, kmax = 0, Ptot_interp = None
     for i in range(3):
         for j in range(i, 3):
             delta_B = delta_B_WF*selection*(kgrid[i]/kmag)*(kgrid[j]/kmag)
-            delta_B[0, 0, 0] = 0.
-            delta_B[kmag == 0] = 0.
+            delta_B = np.nan_to_num(delta_B)
+            #delta_B[0, 0, 0] = 0.
+            #delta_B[kmag == 0] = 0.
             delta_B_real = irfftn(delta_B, overwrite_x=True, workers=nthread)
             product = delta_A_IVF_real*delta_B_real
             term = rfftn(product, overwrite_x=False, workers=nthread)
             term *= (kgrid[i]/kmag)*(kgrid[j]/kmag)
-            term[kmag == 0.] = 0.
+            term = np.nan_to_num(term)
+            #term[kmag == 0.] = 0.
             factor = 1 if (i == j) else 2
             term *= factor
             total += term

@@ -71,4 +71,4 @@ keypairs:
 # Output configuration
 output:
   directory: "../results/"
-  filename_prefix: "analysis_delta_m" 
+  filename_prefix: "analysis" 

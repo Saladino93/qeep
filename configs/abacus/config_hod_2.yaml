@@ -24,7 +24,7 @@ HOD_params:
     density_sigma: 3               # scale radius in Mpc / h for local density calculation
     tracer_flags:                  # which tracer do we want?
         LRG: True
-        ELG: True
+        ELG: False
         QSO: False
     want_rsd: False                 # want RSD?
     write_to_disk: True
