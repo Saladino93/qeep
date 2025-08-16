@@ -168,7 +168,16 @@ def bs2_coev(b10):
   """
   return -2./7.*(b10-1)
 
+def bs2_fit(b10):
+  """
+  C. Modi, E. Castorina, and U. Seljak, “Halo Bias in Lagrangian Space: Estimators and Theoretical Predictions,” arXiv:1612.01621 [astro-ph.CO].
+  """
+  return 0.64-0.3*b10+0.05*b10**2-0.06*b10**3
+   
 def b2_fid(b10):
+  """
+  T. Lazeyras, C. Wagner, T. Baldauf, and F. Schmidt, “Precision Measurement of the Local Bias of Dark Matter Halos,” JCAP 1602 no. 02, (2016) 018, arXiv:1511.01096 [astro-ph.CO].
+  """
   return 2*(0.412 - 2.143*b10 + 0.929*b10**2 + 0.008*b10**3)
 
 def bias_t(b10, bs2):
@@ -695,9 +704,18 @@ def get_bispectrum_XYZ(P_signal_X, P_signal_Y, P_signal_Z, Fkernels, Fbiases_X, 
       P_Y_2 = P_signal_Y(k2_mag)
       P_Z_3 = P_signal_Z(k3_mag)
           
+      #jax.debug.print("k1 min, max {k1_min}, {k1_max}", k1_min = jnp.min(k1_mag), k1_max = jnp.max(k1_mag))
+      #jax.debug.print("k2 min, max {k2_min}, {k2_max}", k2_min = jnp.min(k2_mag), k2_max = jnp.max(k2_mag))
+      #jax.debug.print("k3 min, max {k3_min}, {k3_max}", k3_min = jnp.min(k3_mag), k3_max = jnp.max(k3_mag))
+
       #XY = 2*P_X_1*P_Y_2*jnp.sum([F(k1, k2, k1_mag, k2_mag)*c for F, c in zip(Fkernels, Fbiases)], axis = 0)
       #YZ = 2*P_Y_2*P_Z_3*jnp.sum([F(k2, k3, k2_mag, k3_mag)*c for F, c in zip(Fkernels, Fbiases)], axis = 0)
       #XZ = 2*P_X_1*P_Z_3*jnp.sum([F(k3, k1, k3_mag, k1_mag)*c for F, c in zip(Fkernels, Fbiases)], axis = 0)
+
+      #jax.debug.print("dot k1 k2 {dot}", dot = dot(k1, k2))
+      #jax.debug.print("FG {F}", F = Fkernels[0](k1, k2, k1_mag, k2_mag) * Fbiases_array_Z[0])
+      #jax.debug.print("FS {F}", F = Fkernels[1](k1, k2, k1_mag, k2_mag) * Fbiases_array_Z[1])
+      #jax.debug.print("FT {F}", F = Fkernels[2](k1, k2, k1_mag, k2_mag) * Fbiases_array_Z[2])
       
       # XY term: k1, k2
       XY_sum_Z = (Fkernels[0](k1, k2, k1_mag, k2_mag) * Fbiases_array_Z[0] +
@@ -711,11 +729,15 @@ def get_bispectrum_XYZ(P_signal_X, P_signal_Y, P_signal_Z, Fkernels, Fbiases_X, 
                 Fkernels[2](k2, k3, k2_mag, k3_mag) * Fbiases_array_X[2])
       YZ = 2*P_Y_2*P_Z_3*YZ_sum_X
       
-      # XZ term: k3, k1
+      # XZ term: k3, k1, note kernels are symmetric, so F(k3, k1) = F(k1, k3)
       XZ_sum_Y = (Fkernels[0](k3, k1, k3_mag, k1_mag) * Fbiases_array_Y[0] +
                 Fkernels[1](k3, k1, k3_mag, k1_mag) * Fbiases_array_Y[1] +
                 Fkernels[2](k3, k1, k3_mag, k1_mag) * Fbiases_array_Y[2])
       XZ = 2*P_X_1*P_Z_3*XZ_sum_Y
+
+      #jax.debug.print("XY {XY}", XY = XY)
+      #jax.debug.print("YZ {YZ}", YZ = YZ)
+      #jax.debug.print("XZ {XZ}", XZ = XZ)
 
       somma = XY+YZ+XZ
       return somma
@@ -854,11 +876,11 @@ def shot_trispectrum_mixed(K: float, weight_AB_alpha: callable, P_AB: callable, 
             volume_p = k_p**2/(2*jnp.pi)**3
 
             k1, k2, mask = get_k1_k2_mask(K, k, phi, mu, kmin, kmax)
-            Kvec = k1+k2
+            #Kvec = k1+k2
             
             k1_mag, k2_mag = jnp.linalg.norm(k1, axis=-1), jnp.linalg.norm(k2, axis=-1)
-            ones = jnp.ones_like(k1_mag)
-            K_mag = ones*K
+            #ones = jnp.ones_like(k1_mag)
+            #K_mag = ones*K
 
             #get_k1_k2_mask gives you q, and K-q, vectorial form
             #if you want to get -K-q, you need to flip the sign of the direction, so K_sign = -1
@@ -866,10 +888,12 @@ def shot_trispectrum_mixed(K: float, weight_AB_alpha: callable, P_AB: callable, 
             #k3_mag, k4_mag = jnp.linalg.norm(k3, axis=-1), jnp.linalg.norm(k4, axis=-1)
 
             k3 = spherical_to_cartesian(phi_p, mu_p, k_p)
+            k3_mag = k_p #jnp.linalg.norm(k3, axis = -1)
+            
             k4 = -(k1+k2+k3)
             k3_mag = jnp.linalg.norm(k3, axis = -1)
             k4_mag = jnp.linalg.norm(k4, axis = -1)
-            mask_p = maskf(k4_mag, kmin, kmax)*maskf(k3_mag, kmin, kmax)
+            mask_p = maskf(k4_mag, kmin, kmax)#*maskf(k3_mag, kmin, kmax)
 
             k1_plus_k3 = k1+k3
             k1_plus_k3_mag = jnp.linalg.norm(k1_plus_k3, axis = -1)
@@ -878,20 +902,29 @@ def shot_trispectrum_mixed(K: float, weight_AB_alpha: callable, P_AB: callable, 
 
             power_AB_value = P_AB(k1_plus_k3_mag) #cross-correlation between A and B
             power_AB_value *= 1/nbar_A*1/nbar_B
-            
+
             somma = 0.
             somma += power_AB_value
 
             bispectrum_ABB_value = bispectrum_ABB(k1_plus_k3, k2, k4, k1_plus_k3_mag, k2_mag, k4_mag)
             bispectrum_BAA_value = bispectrum_BAA(k2_plus_k4, k1, k3, k2_plus_k4_mag, k1_mag, k3_mag)
-
+            
             somma += (bispectrum_ABB_value*1/nbar_A)
             somma += (bispectrum_BAA_value*1/nbar_B)
+
+            #jax.debug.print("somma min: {}, max: {}", jnp.min(somma), jnp.max(somma))
+            #jax.debug.print("power_AB_value: {power_AB_value}", power_AB_value = power_AB_value)
+            #jax.debug.print("bispectrum_ABB_value: {bispectrum_ABB_value}", bispectrum_ABB_value = bispectrum_ABB_value)
+            #jax.debug.print("bispectrum_BAA_value: {bispectrum_BAA_value}", bispectrum_BAA_value = bispectrum_BAA_value)
 
             w_result_AB_12 = weight_AB_alpha(k1, k2)
             w_result_AB_34 = weight_AB_alpha(k3, k4)
 
+            #jax.debug.print("somma 1 : {somma}", somma = somma)
+
             somma *= w_result_AB_12*w_result_AB_34
+
+            #jax.debug.print("somma 2: {somma}", somma = somma)
 
             somma *= volume*volume_p*mask*mask_p
             return somma
@@ -957,6 +990,8 @@ def shot_trispectrum_general(K: float, weight_AB_alpha: callable, weight_XY_beta
 
             somma = shot3
             somma += power_spectra_sum*shot2
+
+            somma *= w_result_AB_12*w_result_XY_34
             
             return somma*volume*volume_p*mask*mask_p
         

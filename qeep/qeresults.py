@@ -17,7 +17,7 @@ class QEResults:
 
         nome = f"{filename_prefix}_normalization_AB.npy"
         nomev = f"{filename_prefix}_variance_AB.npy"
-        nomebis = f"{filename_prefix}_shot_bispectrum_AB.npy"
+        #nomebis = f"{filename_prefix}_shot_bispectrum_AB.npy"
         nomebis_mixed = f"{filename_prefix}_cross_shot_AB.npy"
         nomebis_mixed_withB = f"{filename_prefix}_cross_shot_AB_withB.npy"
         nometri = f"{filename_prefix}_shot_trispectrum_AB.npy"
@@ -25,11 +25,26 @@ class QEResults:
 
         self.out_normalization_AB = np.load(output_dir / nome, allow_pickle = True).item() #inverse of normalization N
 
-        self.analysis_cross_shot_AB = np.load(output_dir / nomebis_mixed, allow_pickle = True).item() #cross shot-noise, A_AB, where A is external, AB is QE
-        self.analysis_cross_shot_AB_withB = np.load(output_dir / nomebis_mixed_withB, allow_pickle = True).item() #cross shot-noise with B, B_AB, where B is external, AB is QE
-        self.out_variance_AB = np.load(output_dir / nomev, allow_pickle = True).item() #variance
-        self.out_shot_trispectrum = np.load(output_dir / nometri, allow_pickle = True).item() #trispectrum shot noise, assuming all the same
-        self.out_shot_bispectrum = np.load(output_dir / nomebis, allow_pickle = True).item() #bispectrum shot noise, assuming all the same
+        try:
+            self.analysis_cross_shot_AB = np.load(output_dir / nomebis_mixed, allow_pickle = True).item() #cross shot-noise, A_AB, where A is external, AB is QE
+        except:
+            self.analysis_cross_shot_AB = None
+        
+        try:
+            self.analysis_cross_shot_AB_withB = np.load(output_dir / nomebis_mixed_withB, allow_pickle = True).item() #cross shot-noise with B, B_AB, where B is external, AB is QE
+        except:
+            self.analysis_cross_shot_AB_withB = None
+
+        try:
+            self.out_variance_AB = np.load(output_dir / nomev, allow_pickle = True).item() #variance
+        except:
+            self.out_variance_AB = None
+
+        try:
+            self.out_shot_trispectrum = np.load(output_dir / nometri, allow_pickle = True).item() #trispectrum shot noise, assuming all the same
+        except:
+            self.out_shot_trispectrum = None
+        #self.out_shot_bispectrum = np.load(output_dir / nomebis, allow_pickle = True).item() #bispectrum shot noise, assuming all the same
 
         try:
             self.out_weight_integral = np.load(output_dir / nomeweight, allow_pickle = True).item()
@@ -65,7 +80,7 @@ class QEResults:
         result = {}
         for key, value in self.out_normalization_AB.items():
             value = np.array(value)
-            value[np.abs(value)<1e-10] = 0
+            value[np.abs(value)<1e-40] = 0
             result[key] = jnp.array(value)
         return result
 
@@ -73,7 +88,7 @@ class QEResults:
         def get_norm(key, key2 = None):
             key2 = key if key2 is None else key2
             N = np.array(self.out_normalization_AB[(key, key2)]**-1.)
-            N[np.abs(N)>1e10] = 0
+            N[np.abs(N)>1e40] = 0
             N = jnp.array(N)
             return N
         return get_norm
@@ -110,12 +125,12 @@ class QEResults:
             return B
         return get_bispectrum_mixed_withB
 
-    def get_get_bispectrum(self):
-        def get_bispectrum(key):
-            N = self.get_get_norm()(key)
-            B = self.out_shot_bispectrum[(key, key)]*N
-            return B
-        return get_bispectrum
+    #def get_get_bispectrum(self):
+    #    def get_bispectrum(key):
+    #        N = self.get_get_norm()(key)
+    #        B = self.out_shot_bispectrum[(key, key)]*N
+    #        return B
+    #    return get_bispectrum
 
 
     def get_get_tot_noises(self):

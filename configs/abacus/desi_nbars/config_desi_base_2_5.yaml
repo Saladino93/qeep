@@ -25,7 +25,7 @@ keypairs:
   - - N
 - - - g
     - n
-  - - N
+  - - all
 - - - t
     - n
   - - N
@@ -49,7 +49,22 @@ keypairs:
   - - N
 - - - sa
     - sa
-  - - all
+  - - N
+- - - g
+    - s
+  - - N
+- - - g
+    - t
+  - - N
+- - - g
+    - ga
+  - - N
+- - - g
+    - sa
+  - - N
+- - - g
+    - ta
+  - - N
 name: desi_base_2_5
 number_density:
   nbar_A: 1.9982808343964697e-05
@@ -67,7 +82,7 @@ power_spectrum:
   main_directory: ../results/
   nonlinear: nonlinear_power_abacus.txt
 sampling:
-  Nsamples_base: 5000
+  Nsamples_base: 7000
 sim_params:
   box: 2000
   cleaned_halos: true

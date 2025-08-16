@@ -3,9 +3,15 @@ Get Fisher matrix.
 """
 
 import jax
+from jax import vmap
 import jax.numpy as jnp
 
+import sympy as sp
+import sympy2jax
+
 from interpax import Interpolator1D
+from quadax import quadgk, simpson
+import quadax
 
 from torchquad import Simpson, set_up_backend
 set_up_backend("jax", data_type="float64")
@@ -338,7 +344,7 @@ def get_fisher_matrix(v, K_array, Cfunc, k_min_analysis = 0.01, k_max_analysis =
 
 
 
-def get_F_integrated_fast_new(K_array, F, k_min_analysis=0.01, k_max_analysis=0.05, V=1):
+def get_F_integrated_fast_trapezoid(K_array, F, k_min_analysis=0.01, k_max_analysis=0.05, V=1):
     """
     Fast vectorized version of get_F_integrated.
     Given a Fisher matrix per mode, integrates to give a function.
@@ -367,3 +373,188 @@ def get_F_integrated_fast_new(K_array, F, k_min_analysis=0.01, k_max_analysis=0.
     F_integrated = F_integrated * prefactor
 
     return F_integrated
+
+
+
+
+class FisherCov():
+    """
+    Analytic version of the joint Fisher matrix.
+    """
+    def __init__(self, dim=3):
+        self.dim = dim
+        self._build_symbols(dim)
+        self._build_covariance_matrix()
+        F = self._build_fisher_element()
+        self.F = sympy2jax.SymbolicModule(F)
+    
+    def _build_symbols(self, dim=3):
+        # Create symbols only for upper triangular part (including diagonal)
+        self.P = [sp.Symbol(f"P_{{{i}{j}}}") for i in range(1, dim+1) for j in range(i, dim+1)]
+        self.dP_m = [sp.Symbol(f"dP_{{{i}{j}}}/dtheta_m") for i in range(1, dim+1) for j in range(i, dim+1)]
+        self.dP_n = [sp.Symbol(f"dP_{{{i}{j}}}/dtheta_n") for i in range(1, dim+1) for j in range(i, dim+1)]
+    
+    def _get_symbol_index(self, i, j):
+        """Convert matrix indices (i,j) to the index in the flattened upper triangular list"""
+        # Ensure i <= j for upper triangular
+        if i > j:
+            i, j = j, i
+        
+        # Calculate the index in the flattened upper triangular array
+        # For row i (0-indexed), we skip i*(2n-i-1)/2 elements from previous rows
+        # Then add (j-i) for the column offset
+        return i * self.dim - i * (i + 1) // 2 + j
+    
+    def _build_covariance_matrix(self):
+        def matrix_element(i, j):
+            idx = self._get_symbol_index(i, j)
+            return self.P[idx]
+        
+        def matrix_element_m(i, j):
+            idx = self._get_symbol_index(i, j)
+            return self.dP_m[idx]
+            
+        def matrix_element_n(i, j):
+            idx = self._get_symbol_index(i, j)
+            return self.dP_n[idx]
+        
+        # Build symmetric matrices
+        self.C = sp.Matrix(self.dim, self.dim, matrix_element)
+        self.C_inv = self.C.inv()
+        self.dC_dtheta_m = sp.Matrix(self.dim, self.dim, matrix_element_m)
+        self.dC_dtheta_n = sp.Matrix(self.dim, self.dim, matrix_element_n)
+    
+    def _build_fisher_element(self):
+        product1 = self.dC_dtheta_m * self.C_inv
+        product2 = self.dC_dtheta_n * self.C_inv
+        trace_argument = product1 * product2
+        return sp.Rational(1, 2) * sp.trace(trace_argument).simplify()
+    
+    def _build_derivative_from_covariance_function(self, Cfunc, v, K_array):
+        dC_dv = jax.jacfwd(Cfunc, argnums=1)  # (n_modes, nprobes, nprobes, n_params)
+        return dC_dv(K_array, v)
+    
+    def _pars_function_valuse(self, Cfunc, v, K_array):
+        C = Cfunc(K_array, v)
+        dC_dv = self._build_derivative_from_covariance_function(Cfunc, v, K_array)
+        P_kwargs = {f"P_{{{i}{j}}}": C[:, i-1, j-1] for i in range(1, self.dim+1) for j in range(i, self.dim+1)}
+        dP_kwargs = {f"dP_{{{i}{j}}}/dtheta_m": dC_dv[:, i-1, j-1, :] for i in range(1, self.dim+1) for j in range(i, self.dim+1)}
+        return {**P_kwargs, **dP_kwargs}
+    
+    def _evaluate_fisher(self, Cfunc, v, K_array):
+        kwargs = self._pars_function_valuse(Cfunc, v, K_array)
+        temp = {k: v for k, v in kwargs.items()}
+        number_pars = len(v)
+        F_array = jnp.zeros((K_array.size, number_pars, number_pars))
+        for m in range(0, number_pars):
+            for n in range(m, number_pars):
+                for i in range(1, self.dim+1):
+                    for j in range(i, self.dim+1):
+                        temp[f"dP_{{{i}{j}}}/dtheta_m"] = kwargs[f"dP_{{{i}{j}}}/dtheta_m"][:, m]
+                        temp[f"dP_{{{i}{j}}}/dtheta_n"] = kwargs[f"dP_{{{i}{j}}}/dtheta_m"][:, n]
+                F_array = F_array.at[:, m, n].set(self.F(**temp))
+                F_array = F_array.at[:, n, m].set(F_array[:, m, n])
+        return F_array
+    
+    def __call__(self, Cfunc, v, K_array):
+        return self._evaluate_fisher(Cfunc, v, K_array)
+    
+
+
+def integrate_upper_triangular(F, Ks, simpson = False):
+
+    N, M, _ = F.shape
+    
+    # Create upper triangular indices
+    i, j = jnp.triu_indices(M)
+    
+    # Extract upper triangular elements: shape (num_pairs, N)
+    F_upper = F[:, i, j].T  # Transpose to get (num_pairs, N)
+    
+    # Vectorized integration over all upper triangular pairs
+    if simpson:
+        integrate_fn = lambda f_vals: quadax.simpson(y=Ks**2 * f_vals, x=Ks)
+    else:
+        integrate_fn = lambda f_vals: quadax.trapezoid(y=Ks**2 * f_vals, x=Ks)
+    results = vmap(integrate_fn)(F_upper)
+    
+    # Create symmetric result matrix
+    result = jnp.zeros((M, M))
+    result = result.at[i, j].set(results)
+    result = result.at[j, i].set(results)  # Symmetrize
+    
+    return result
+    
+def get_F_integrated_fast_new(K_array, F, k_min_analysis=0.01, k_max_analysis=0.05, V=1, method = 0):
+
+    V *= 1e9  # Convert to Mpc^3 h^{-3}
+
+    if method == 3:
+        Finterpolated = Interpolator1D(K_array, F)
+        epsabs = epsrel = 1e-5 # by default jax uses 32 bit, higher accuracy requires going to 64 bit
+        a, b = k_min_analysis, k_max_analysis
+        F_integrated, info = quadgk(lambda K: Finterpolated(K)*K**2, [a, b], epsabs=epsabs, epsrel=epsrel)
+    else:
+        sel = (K_array >= k_min_analysis) & (K_array <= k_max_analysis)
+        FF = F[sel, :, :]
+        kk = K_array[sel]
+        if method == 1:
+            F_integrated = integrate_upper_triangular(FF, kk)
+        elif method == 2:
+            F_integrated = integrate_upper_triangular(FF, kk, simpson = True)
+        elif method == 0:
+            F_integrated = jnp.trapezoid(FF*kk[:, None, None]**2, kk, axis=0)
+        
+    # Apply prefactor (factor of 2 from mu integration)
+    prefactor = 2 * V / (2 * jnp.pi)**2
+    F_integrated = F_integrated * prefactor
+
+    return F_integrated
+
+def get_integrated_fisher(K_array, F, Kmin = 0.001, Kmax = 0.05, V = 1, Narr = 20, method = 0):
+        
+    Kmaxarr = min(0.2, Kmax)*(0.9)
+    modes = jnp.logspace(jnp.log10(Kmin), jnp.log10(Kmaxarr), Narr) if Narr > 1 else [Kmin]
+
+    F_int = []
+    for KK in modes:
+        F_integrated = get_F_integrated_fast_new(K_array, F, KK, Kmax, V = V, method = method)
+        F_int.append(F_integrated)
+        
+    return modes, jnp.array(F_int)
+
+
+def cumulative_fisher(K_array, F, k_min_analysis, k_max_analysis, V):
+    
+    N, M, _ = F.shape
+    
+    # Create upper triangular indices
+    i, j = jnp.triu_indices(M)
+
+    sel = (K_array >= k_min_analysis) & (K_array <= k_max_analysis)
+    F_sel = F[sel]
+    K_sel = K_array[sel]
+    
+    # Extract upper triangular elements: shape (num_pairs, N)
+    F_upper = F_sel[:, i, j].T  # Transpose to get (num_pairs, N)
+
+    # Vectorized integration over all upper triangular pairs
+    #integrate_fn = lambda f_vals: quadax.simpson(y=Ks**2 * f_vals, x=Ks)
+    integrate_fn = lambda f_vals: quadax.cumulative_trapezoid(y = K_sel**2 * f_vals, x=K_sel,initial=0)
+    results = vmap(integrate_fn)(F_upper)
+    #F_sel = F_AB[sel]
+    #K_sel = Ks[sel]
+    #cumulative_F = quadax.cumulative_trapezoid(y = F_sel[:, 0, 0], x = K_sel, axis = 0)
+
+    #print(results[1, 0], quadax.trapezoid(y = K_sel[1:]**2 * F_sel[1:, 0, 0], x=K_sel[1:]))
+        
+    # Create symmetric result matrix
+    result = jnp.zeros((M, M, K_sel.size))
+    result = result.at[i, j, :].set(results)
+    result = result.at[j, i, :].set(results)  # Symmetrize
+    
+    result = result.T
+
+    prefactor = 2 * V / (2 * jnp.pi)**2
+    
+    return K_sel, result*prefactor

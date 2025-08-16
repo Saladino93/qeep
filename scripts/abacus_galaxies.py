@@ -82,17 +82,20 @@ def main(config_path, config_path_hod):
         zcv_params = config_hod['zcv_params']
 
         for k in HOD_params["tracer_flags"].keys():
-            HOD_params["tracer_flags"][k] = False
-
-        HOD_params["tracer_flags"][sample] = True
+            HOD_params["tracer_flags"][k] = True
+        #HOD_params["tracer_flags"][sample] = True
 
         newBall = AbacusHOD(sim_params, HOD_params, clustering_params)
 
         mock_dict = {}
         mock_dict[sample] = galaxies
 
+        for k in config_hod['HOD_params']["tracer_flags"].keys():
+            config_hod['HOD_params']["tracer_flags"][k] = False
+        config_hod['HOD_params']["tracer_flags"][sample] = True
+
         load_presaved = False
-        zcv_dict = newBall.aba(mock_dict, config_hod, load_presaved=load_presaved)
+        zcv_dict = newBall.apply_zcv(mock_dict, config_hod, load_presaved=load_presaved)
 
 
         sim_name = config_hod['sim_params']['sim_name']

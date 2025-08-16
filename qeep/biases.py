@@ -6,6 +6,13 @@ def symm(f, A, B, **kwargs):
 def asymm(f, A, B, **kwargs):
     return (f(A, B, **kwargs)-f(B, A, **kwargs))/2
 
+def symm_array(A, B):
+    #Q(AB) = (QAB + QBA)/2  
+    return (A+B)/2
+def asymm_array(A, B):
+    #Q[AB] = (QAB−QBA)/2.
+    return (A-B)/2
+
 def bs2_coev(b10):
   """
   Coevolution value of the bs2 parameter
@@ -21,17 +28,71 @@ def br_formula(b1, z = 0.5):
     bias = 6.8*((1+z)*H0)**-1.*(b1-1) #formula 20 from Schmidt 2016
     return bias
 
+
+def bGX_from_br(br):
+    factor = 203/90
+    return br*factor
+
+def bSX_from_br(br):
+    factor = 17/6
+    return br*factor
+
+def bTX_from_br(br):
+    factor = 91/30
+    return br*factor
+
 def bGX(b10):
-    factor = 1421/510
-    return br_formula(b10)*factor
+    #some formula derived from bottaro's paper
+    #factor = 203/90
+    #return br_formula(b10)*factor
+    return bGX_from_br(br_formula(b10))
 
 def bSX(b10):
-    factor = 17/6
-    return br_formula(b10)*factor
+    #some formula derived from bottaro's paper
+    #factor = 17/6
+    #return br_formula(b10)*factor
+    return bSX_from_br(br_formula(b10))
 
 def bTX(b10):
-    factor = 91/30
-    return br_formula(b10)*factor
+    #some formula derived from bottaro's paper
+    #factor = 91/30
+    #return br_formula(b10)*factor
+    return bTX_from_br(br_formula(b10))
+
+
+
+def get_kernel_bias(key, b1, b2, bs2, bGX = 0, bSX = 0, bTX = 0, fNL = 0, eps = 0, Fg = 21/17, Ft = 7/2, a1 = 1, a2 = -0.8095238095, delta_c = 1.42):
+    #a1, a2, delta_c = 1, -0.8095238095, 1.42 #spherical collapse
+    if key == "g":
+        return b1+Fg*b2+bGX*eps
+    elif key == "s":
+        return b1+bSX*eps
+    elif key == "t":
+        return b1+Ft*bs2+bTX*eps
+    elif key == "phiphi":
+        return b1*fNL
+    elif key == "c01":
+        return (2*delta_c*(b1-1))*fNL
+    elif key == "c02":
+        return (4*delta_c*(delta_c*((b2-2*(a1+a2)*(b1-1))/a1**2)-2*(b1-1)))*fNL**2
+    elif key == "c11":
+        return (2*(delta_c*((b2-2*(a1+a2)*(b1-1))/a1)-a1*(b1-1))+2*delta_c*(b1-1))*fNL
+    else:
+        raise ValueError(f"Invalid key: {key}")
+    
+def get_effective_bias(key, b1, b2, bs2, Fg = 21/17, Ft = 7/2, a1 = 1, a2 = -0.8095238095, delta_c = 1.42, b1_other = None, bGX = 0, bSX = 0, bTX = 0, fNL = 0, eps = 0):
+    return get_kernel_bias(key, b1, b2, bs2, Fg = Fg, Ft = Ft, a1 = a1, a2 = a2, delta_c = delta_c, bGX = bGX, bSX = bSX, bTX = bTX, fNL = fNL, eps = eps)*b1_other
+
+def get_symm_bias(key, b1A, b1B, b2A, b2B, bs2A, bs2B, bGXA, bGXB, bSXA, bSXB, bTXA, bTXB, Fg = 21/17, Ft = 7/2, a1 = 1, a2 = -0.8095238095, delta_c = 1.42, fNL = 0, eps = 0):
+    bias_AB = get_effective_bias(key, b1A, b2A, bs2A, Fg = Fg, Ft = Ft, a1 = a1, a2 = a2, delta_c = delta_c, b1_other = b1B, fNL = fNL, bGX = bGXA, bSX = bSXA, bTX = bTXA, eps = eps)
+    bias_BA = get_effective_bias(key, b1B, b2B, bs2B, Fg = Fg, Ft = Ft, a1 = a1, a2 = a2, delta_c = delta_c, b1_other = b1A, fNL = fNL, bGX = bGXB, bSX = bSXB, bTX = bTXB, eps = eps)
+    return symm_array(bias_AB, bias_BA)
+
+def get_asymm_bias(key, b1A, b1B, b2A, b2B, bs2A, bs2B, bGXA, bGXB, bSXA, bSXB, bTXA, bTXB, Fg = 21/17, Ft = 7/2, a1 = 1, a2 = -0.8095238095, delta_c = 1.42, fNL = 0, eps = 0):
+    bias_AB = get_effective_bias(key, b1A, b2A, bs2A, Fg = Fg, Ft = Ft, a1 = a1, a2 = a2, delta_c = delta_c, b1_other = b1B, fNL = fNL, bGX = bGXA, bSX = bSXA, bTX = bTXA, eps = eps)
+    bias_BA = get_effective_bias(key, b1B, b2B, bs2B, Fg = Fg, Ft = Ft, a1 = a1, a2 = a2, delta_c = delta_c, b1_other = b1A, fNL = fNL, bGX = bGXB, bSX = bSXB, bTX = bTXB, eps = eps)
+    return asymm_array(bias_AB, bias_BA)
+
 
 
 def cg_g(biases_A, biases_B, e):

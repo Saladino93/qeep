@@ -32,7 +32,7 @@ k_range:
 
 # Sampling parameters
 sampling:
-  Nsamples_base: 5000
+  Nsamples_base: 7000
 
 # Physics parameters
 physics:
@@ -59,7 +59,7 @@ number_density:
 keypairs:
   - [["n", "n"], ["all"]]
   - [["s", "n"], ["N"]]
-  - [["g", "n"], ["N"]]
+  - [["g", "n"], ["all"]]
   - [["t", "n"], ["N"]]
   - [["g", "g"], ["all"]]
   #- [["s", "s"], ["all"]]
@@ -71,7 +71,12 @@ keypairs:
   - [["n", "ga"], ["N"]]
   - [["n", "sa"], ["N"]]
   - [["n", "ta"], ["N"]]
-  - [["sa", "sa"], ["all"]]
+  - [["sa", "sa"], ["N"]]
+  - [["g", "s"], ["N"]]
+  - [["g", "t"], ["N"]]
+  - [["g", "ga"], ["N"]]
+  - [["g", "sa"], ["N"]]
+  - [["g", "ta"], ["N"]]
   
 # Estimator keys
 estimator_keys:
